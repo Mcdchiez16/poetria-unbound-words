@@ -1,4 +1,3 @@
-
 import { BookOpen, Mic, PenTool, Volume2, Calendar, Sparkles, Heart, Users, Quote } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -69,7 +68,18 @@ const Index = () => {
               <Link to="/write" className="text-gray-600 hover:text-purple-600 transition-colors">Write</Link>
               <Link to="/audio" className="text-gray-600 hover:text-purple-600 transition-colors">Listen</Link>
               <Link to="/daily" className="text-gray-600 hover:text-purple-600 transition-colors">Daily</Link>
-              <Button className="bg-purple-600 hover:bg-purple-700">Get Started</Button>
+              <div className="flex items-center space-x-3">
+                <Link to="/login">
+                  <Button variant="outline" className="border-purple-300 text-purple-600 hover:bg-purple-50">
+                    Sign In
+                  </Button>
+                </Link>
+                <Link to="/signup">
+                  <Button className="bg-purple-600 hover:bg-purple-700">
+                    Sign Up
+                  </Button>
+                </Link>
+              </div>
             </nav>
           </div>
         </div>
@@ -98,9 +108,11 @@ const Index = () => {
           </p>
           
           <div className="flex flex-col sm:flex-row gap-4 justify-center mb-8 sm:mb-12 px-4">
-            <Button size="lg" className="bg-purple-600 hover:bg-purple-700 text-base sm:text-lg px-6 sm:px-8 w-full sm:w-auto">
-              Start Exploring
-            </Button>
+            <Link to="/signup">
+              <Button size="lg" className="bg-purple-600 hover:bg-purple-700 text-base sm:text-lg px-6 sm:px-8 w-full sm:w-auto">
+                Start Exploring
+              </Button>
+            </Link>
             <Button size="lg" variant="outline" className="border-purple-300 text-purple-600 hover:bg-purple-50 text-base sm:text-lg px-6 sm:px-8 w-full sm:w-auto">
               Watch Demo
             </Button>
@@ -194,7 +206,7 @@ const Index = () => {
             <p className="text-gray-600 mb-6 sm:mb-8 text-base sm:text-lg leading-relaxed">
               Whether you're a seasoned poet or just starting out, Poetria has everything you need to explore, create, and share beautiful poetry.
             </p>
-            <Link to="/library">
+            <Link to="/signup">
               <Button size="lg" className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white px-8 py-3 text-lg shadow-lg hover:shadow-xl transition-all duration-300">
                 Start Your Journey
               </Button>

@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import BottomNavigation from "@/components/BottomNavigation";
 
 const Library = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -61,14 +62,14 @@ const Library = () => {
   });
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-blue-50">
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-blue-50 pb-20 md:pb-0">
       {/* Header */}
       <header className="bg-white/80 backdrop-blur-sm border-b border-purple-100 sticky top-0 z-50">
-        <div className="container mx-auto px-6 py-4">
+        <div className="container mx-auto px-4 sm:px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
-              <BookOpen className="w-8 h-8 text-purple-600" />
-              <h1 className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
+              <BookOpen className="w-6 h-6 sm:w-8 sm:h-8 text-purple-600" />
+              <h1 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
                 Poetry Library
               </h1>
             </div>
@@ -76,20 +77,20 @@ const Library = () => {
         </div>
       </header>
 
-      <div className="container mx-auto px-6 py-8">
+      <div className="container mx-auto px-4 sm:px-6 py-6 sm:py-8">
         {/* Search and Filter Section */}
-        <div className="mb-8">
-          <div className="flex flex-col md:flex-row gap-4 mb-6">
+        <div className="mb-6 sm:mb-8">
+          <div className="flex flex-col md:flex-row gap-4 mb-4 sm:mb-6">
             <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 sm:w-5 sm:h-5" />
               <Input
                 placeholder="Search poems, authors..."
-                className="pl-10"
+                className="pl-8 sm:pl-10 text-sm sm:text-base"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
-            <Button variant="outline" className="flex items-center gap-2">
+            <Button variant="outline" className="flex items-center gap-2 text-sm sm:text-base">
               <Filter className="w-4 h-4" />
               Advanced Filter
             </Button>
@@ -103,7 +104,7 @@ const Library = () => {
                 variant={selectedCategory === category ? "default" : "outline"}
                 size="sm"
                 onClick={() => setSelectedCategory(category)}
-                className={selectedCategory === category ? "bg-purple-600 hover:bg-purple-700" : ""}
+                className={`text-xs sm:text-sm ${selectedCategory === category ? "bg-purple-600 hover:bg-purple-700" : ""}`}
               >
                 {category.charAt(0).toUpperCase() + category.slice(1)}
               </Button>
@@ -113,30 +114,30 @@ const Library = () => {
 
         {/* Results */}
         <div className="mb-4">
-          <p className="text-gray-600">
+          <p className="text-gray-600 text-sm sm:text-base">
             {filteredPoems.length} poem{filteredPoems.length !== 1 ? 's' : ''} found
           </p>
         </div>
 
         {/* Poems Grid */}
-        <div className="grid gap-6">
+        <div className="grid gap-4 sm:gap-6">
           {filteredPoems.map((poem) => (
             <Card key={poem.id} className="hover:shadow-lg transition-all duration-300 border-purple-100">
-              <CardHeader>
-                <div className="flex justify-between items-start">
-                  <div>
-                    <CardTitle className="text-xl font-semibold text-gray-800 mb-2">
+              <CardHeader className="pb-3 sm:pb-4">
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2">
+                  <div className="flex-1">
+                    <CardTitle className="text-lg sm:text-xl font-semibold text-gray-800 mb-2">
                       {poem.title}
                     </CardTitle>
-                    <p className="text-purple-600 font-medium">by {poem.author}</p>
+                    <p className="text-purple-600 font-medium text-sm sm:text-base">by {poem.author}</p>
                   </div>
-                  <Badge variant="secondary" className="bg-purple-100 text-purple-700">
+                  <Badge variant="secondary" className="bg-purple-100 text-purple-700 self-start sm:self-auto text-xs">
                     {poem.category}
                   </Badge>
                 </div>
               </CardHeader>
               <CardContent>
-                <p className="text-gray-600 mb-4 leading-relaxed">
+                <p className="text-gray-600 mb-4 leading-relaxed text-sm sm:text-base">
                   {poem.excerpt}
                 </p>
                 
@@ -150,18 +151,18 @@ const Library = () => {
                 </div>
 
                 {/* Actions */}
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                   <div className="flex items-center gap-4">
-                    <Button variant="ghost" size="sm" className="flex items-center gap-2 text-gray-600">
+                    <Button variant="ghost" size="sm" className="flex items-center gap-2 text-gray-600 text-sm">
                       <Heart className="w-4 h-4" />
                       {poem.likes}
                     </Button>
-                    <Button variant="ghost" size="sm" className="flex items-center gap-2 text-gray-600">
+                    <Button variant="ghost" size="sm" className="flex items-center gap-2 text-gray-600 text-sm">
                       <Share2 className="w-4 h-4" />
                       Share
                     </Button>
                   </div>
-                  <Button className="bg-purple-600 hover:bg-purple-700">
+                  <Button className="bg-purple-600 hover:bg-purple-700 text-sm w-full sm:w-auto">
                     Read Full Poem
                   </Button>
                 </div>
@@ -171,12 +172,14 @@ const Library = () => {
         </div>
 
         {/* Load More */}
-        <div className="text-center mt-8">
-          <Button variant="outline" size="lg">
+        <div className="text-center mt-6 sm:mt-8">
+          <Button variant="outline" size="lg" className="text-sm sm:text-base">
             Load More Poems
           </Button>
         </div>
       </div>
+
+      <BottomNavigation />
     </div>
   );
 };

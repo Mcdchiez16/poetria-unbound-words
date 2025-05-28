@@ -1,0 +1,63 @@
+
+import { BookOpen, Mic, PenTool, Volume2, Calendar } from "lucide-react";
+import { Link, useLocation } from "react-router-dom";
+import { cn } from "@/lib/utils";
+
+const BottomNavigation = () => {
+  const location = useLocation();
+
+  const navItems = [
+    {
+      icon: BookOpen,
+      label: "Library",
+      path: "/library"
+    },
+    {
+      icon: PenTool,
+      label: "Write",
+      path: "/write"
+    },
+    {
+      icon: Volume2,
+      label: "Audio",
+      path: "/audio"
+    },
+    {
+      icon: Mic,
+      label: "Recite",
+      path: "/recite"
+    },
+    {
+      icon: Calendar,
+      label: "Daily",
+      path: "/daily"
+    }
+  ];
+
+  return (
+    <nav className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-sm border-t border-purple-100 z-50 md:hidden">
+      <div className="flex justify-around items-center py-2 px-4">
+        {navItems.map((item) => {
+          const isActive = location.pathname === item.path;
+          return (
+            <Link
+              key={item.path}
+              to={item.path}
+              className={cn(
+                "flex flex-col items-center justify-center p-2 rounded-lg transition-colors min-w-0 flex-1",
+                isActive 
+                  ? "text-purple-600 bg-purple-50" 
+                  : "text-gray-600 hover:text-purple-600 hover:bg-purple-50"
+              )}
+            >
+              <item.icon className="w-5 h-5 mb-1" />
+              <span className="text-xs font-medium truncate">{item.label}</span>
+            </Link>
+          );
+        })}
+      </div>
+    </nav>
+  );
+};
+
+export default BottomNavigation;

@@ -5,16 +5,25 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
+import { useNavigate } from "react-router-dom";
 import BottomNavigation from "@/components/BottomNavigation";
 
 const WritingStudio = () => {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
+  const [category, setCategory] = useState("free_verse");
   const [fontSize, setFontSize] = useState([16]);
   const [fontFamily, setFontFamily] = useState("serif");
+  const [saving, setSaving] = useState(false);
+  
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const navigate = useNavigate();
 
   const fontOptions = [
     { value: "serif", name: "Serif" },
@@ -24,11 +33,76 @@ const WritingStudio = () => {
   ];
 
   const templates = [
-    { name: "Sonnet", structure: "14 lines, ABAB CDCD EFEF GG rhyme scheme" },
-    { name: "Haiku", structure: "3 lines, 5-7-5 syllable pattern" },
-    { name: "Free Verse", structure: "No formal constraints" },
-    { name: "Limerick", structure: "5 lines, AABBA rhyme scheme" }
+    { name: "Sonnet", structure: "14 lines, ABAB CDCD EFEF GG rhyme scheme", category: "sonnet" },
+    { name: "Haiku", structure: "3 lines, 5-7-5 syllable pattern", category: "haiku" },
+    { name: "Free Verse", structure: "No formal constraints", category: "free_verse" },
+    { name: "Limerick", structure: "5 lines, AABBA rhyme scheme", category: "limerick" }
   ];
+
+  const handleSave = async () => {
+    if (!user) {
+      toast({
+        title: "Please sign in",
+        description: "You need to be signed in to save poems.",
+        variant: "destructive",
+      });
+      navigate("/login");
+      return;
+    }
+
+    if (!title.trim() || !content.trim()) {
+      toast({
+        title: "Missing content",
+        description: "Please add both a title and content to your poem.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSaving(true);
+
+    try {
+      const { error } = await supabase
+        .from('poems')
+        .insert({
+          title: title.trim(),
+          content: content.trim(),
+          category,
+          user_id: user.id,
+        });
+
+      if (error) {
+        throw error;
+      }
+
+      toast({
+        title: "Poem saved!",
+        description: "Your poem has been saved successfully.",
+      });
+
+      // Clear the form after saving
+      setTitle("");
+      setContent("");
+      setCategory("free_verse");
+    } catch (error) {
+      console.error('Error saving poem:', error);
+      toast({
+        title: "Error saving poem",
+        description: "There was an error saving your poem. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleTemplateSelect = (template: typeof templates[0]) => {
+    setCategory(template.category);
+    toast({
+      title: `${template.name} template selected`,
+      description: template.structure,
+    });
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-blue-50 pb-20 md:pb-0">
@@ -47,9 +121,14 @@ const WritingStudio = () => {
                 <Eye className="w-4 h-4" />
                 <span className="hidden lg:inline">Preview</span>
               </Button>
-              <Button variant="outline" className="flex items-center gap-2 text-sm">
+              <Button 
+                variant="outline" 
+                className="flex items-center gap-2 text-sm"
+                onClick={handleSave}
+                disabled={saving}
+              >
                 <Save className="w-4 h-4" />
-                <span className="hidden lg:inline">Save</span>
+                <span className="hidden lg:inline">{saving ? "Saving..." : "Save"}</span>
               </Button>
               <Button className="bg-purple-600 hover:bg-purple-700 flex items-center gap-2 text-sm">
                 <Share2 className="w-4 h-4" />
@@ -98,9 +177,15 @@ const WritingStudio = () => {
                 <Eye className="w-4 h-4 mr-1" />
                 Preview
               </Button>
-              <Button variant="outline" size="sm" className="flex-1">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="flex-1"
+                onClick={handleSave}
+                disabled={saving}
+              >
                 <Save className="w-4 h-4 mr-1" />
-                Save
+                {saving ? "Saving..." : "Save"}
               </Button>
               <Button size="sm" className="flex-1 bg-purple-600 hover:bg-purple-700">
                 <Share2 className="w-4 h-4 mr-1" />
@@ -162,8 +247,11 @@ const WritingStudio = () => {
                   {templates.map((template, index) => (
                     <Button
                       key={index}
-                      variant="outline"
-                      className="w-full text-left justify-start h-auto p-3"
+                      variant={category === template.category ? "default" : "outline"}
+                      className={`w-full text-left justify-start h-auto p-3 ${
+                        category === template.category ? "bg-purple-600 hover:bg-purple-700" : ""
+                      }`}
+                      onClick={() => handleTemplateSelect(template)}
                     >
                       <div>
                         <div className="font-medium text-sm">{template.name}</div>

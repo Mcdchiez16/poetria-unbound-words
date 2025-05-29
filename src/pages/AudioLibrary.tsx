@@ -6,13 +6,47 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import BottomNavigation from "@/components/BottomNavigation";
+import LoginButton from "@/components/LoginButton";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
+import { useQuery } from "@tanstack/react-query";
+import { useToast } from "@/hooks/use-toast";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const AudioLibrary = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [playingId, setPlayingId] = useState<number | null>(null);
   const [progress, setProgress] = useState(0);
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const isMobile = useIsMobile();
 
-  const audioPoems = [
+  // Fetch audio poems from Supabase
+  const { data: dbPoems = [], isLoading } = useQuery({
+    queryKey: ["audioPoems"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('poems')
+        .select('*')
+        .eq('is_audio', true)
+        .order('created_at', { ascending: false });
+      
+      if (error) {
+        toast({
+          title: "Error loading audio poems",
+          description: error.message,
+          variant: "destructive",
+        });
+        return [];
+      }
+      
+      return data || [];
+    },
+  });
+
+  // Sample audio poems to display when no data from database
+  const sampleAudioPoems = [
     {
       id: 1,
       title: "The Raven",
@@ -55,13 +89,28 @@ const AudioLibrary = () => {
     }
   ];
 
+  // Use actual poems from database if available, otherwise use sample data
+  const audioPoems = dbPoems.length > 0 
+    ? dbPoems.map(poem => ({
+        id: poem.id,
+        title: poem.title,
+        author: user?.user_metadata?.full_name || "Unknown Author",
+        narrator: user?.user_metadata?.full_name || "Unknown Narrator",
+        duration: "3:45", // Placeholder duration
+        category: poem.category || "free_verse",
+        likes: Math.floor(Math.random() * 1000),
+        downloads: Math.floor(Math.random() * 500),
+        content: poem.content
+      }))
+    : sampleAudioPoems;
+
   const filteredAudio = audioPoems.filter(poem =>
     poem.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
     poem.author.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    poem.narrator.toLowerCase().includes(searchTerm.toLowerCase())
+    (poem.narrator && poem.narrator.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
-  const togglePlay = (id: number) => {
+  const togglePlay = (id: any) => {
     if (playingId === id) {
       setPlayingId(null);
     } else {
@@ -71,7 +120,7 @@ const AudioLibrary = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-blue-50">
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-blue-50 pb-20 md:pb-0">
       {/* Header */}
       <header className="bg-white/80 backdrop-blur-sm border-b border-purple-100 sticky top-0 z-50">
         <div className="container mx-auto px-6 py-4">
@@ -82,6 +131,7 @@ const AudioLibrary = () => {
                 Audio Library
               </h1>
             </div>
+            <LoginButton />
           </div>
         </div>
       </header>
@@ -100,32 +150,89 @@ const AudioLibrary = () => {
           </div>
         </div>
 
-        {/* Featured Section */}
-        <div className="mb-8">
-          <h2 className="text-2xl font-bold mb-4 text-gray-800">Featured Narrations</h2>
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredAudio.slice(0, 3).map((poem) => (
-              <Card key={poem.id} className="hover:shadow-lg transition-all duration-300 border-purple-100">
-                <CardHeader>
-                  <Badge variant="secondary" className="w-fit bg-purple-100 text-purple-700">
-                    {poem.category}
-                  </Badge>
-                  <CardTitle className="text-lg font-semibold text-gray-800">
-                    {poem.title}
-                  </CardTitle>
-                  <p className="text-purple-600 font-medium">by {poem.author}</p>
-                  <p className="text-sm text-gray-500">Narrated by {poem.narrator}</p>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {/* Audio Player */}
-                    <div className="bg-gray-50 p-4 rounded-lg">
-                      <div className="flex items-center justify-between mb-2">
+        {isLoading ? (
+          <div className="flex justify-center py-12">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+          </div>
+        ) : (
+          <>
+            {/* Featured Section */}
+            <div className="mb-8">
+              <h2 className="text-2xl font-bold mb-4 text-gray-800">Featured Narrations</h2>
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredAudio.slice(0, 3).map((poem) => (
+                  <Card key={poem.id} className="hover:shadow-lg transition-all duration-300 border-purple-100">
+                    <CardHeader>
+                      <Badge variant="secondary" className="w-fit bg-purple-100 text-purple-700">
+                        {poem.category}
+                      </Badge>
+                      <CardTitle className="text-lg font-semibold text-gray-800">
+                        {poem.title}
+                      </CardTitle>
+                      <p className="text-purple-600 font-medium">by {poem.author}</p>
+                      <p className="text-sm text-gray-500">Narrated by {poem.narrator}</p>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-4">
+                        {/* Audio Player */}
+                        <div className="bg-gray-50 p-4 rounded-lg">
+                          <div className="flex items-center justify-between mb-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => togglePlay(poem.id)}
+                              className="w-12 h-12 rounded-full bg-purple-600 hover:bg-purple-700 text-white"
+                            >
+                              {playingId === poem.id ? (
+                                <Pause className="w-5 h-5" />
+                              ) : (
+                                <Play className="w-5 h-5 ml-1" />
+                              )}
+                            </Button>
+                            <span className="text-sm text-gray-500">{poem.duration}</span>
+                          </div>
+                          {playingId === poem.id && (
+                            <Progress value={progress} className="w-full" />
+                          )}
+                        </div>
+
+                        {/* Stats and Actions */}
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-4 text-sm text-gray-500">
+                            <span className="flex items-center gap-1">
+                              <Heart className="w-4 h-4" />
+                              {poem.likes}
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <Download className="w-4 h-4" />
+                              {poem.downloads}
+                            </span>
+                          </div>
+                          <Button size="sm" variant="outline">
+                            <Download className="w-4 h-4 mr-2" />
+                            Download
+                          </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
+
+            {/* All Audio List */}
+            <div>
+              <h2 className="text-2xl font-bold mb-4 text-gray-800">All Audio Poems</h2>
+              <div className="space-y-4">
+                {filteredAudio.map((poem) => (
+                  <Card key={poem.id} className="hover:shadow-md transition-all duration-300">
+                    <CardContent className="p-6">
+                      <div className="flex items-center gap-4">
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() => togglePlay(poem.id)}
-                          className="w-12 h-12 rounded-full bg-purple-600 hover:bg-purple-700 text-white"
+                          className="w-12 h-12 rounded-full bg-purple-600 hover:bg-purple-700 text-white flex-shrink-0"
                         >
                           {playingId === poem.id ? (
                             <Pause className="w-5 h-5" />
@@ -133,91 +240,44 @@ const AudioLibrary = () => {
                             <Play className="w-5 h-5 ml-1" />
                           )}
                         </Button>
-                        <span className="text-sm text-gray-500">{poem.duration}</span>
+
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-semibold text-gray-800 truncate">{poem.title}</h3>
+                          <p className="text-purple-600 text-sm">by {poem.author}</p>
+                          <p className="text-gray-500 text-sm">Narrated by {poem.narrator}</p>
+                          {playingId === poem.id && (
+                            <Progress value={progress} className="w-full mt-2" />
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-4 text-sm text-gray-500">
+                          <span>{poem.duration}</span>
+                          <span className="flex items-center gap-1">
+                            <Heart className="w-4 h-4" />
+                            {poem.likes}
+                          </span>
+                          <Button size="sm" variant="ghost">
+                            <Download className="w-4 h-4" />
+                          </Button>
+                        </div>
                       </div>
-                      {playingId === poem.id && (
-                        <Progress value={progress} className="w-full" />
-                      )}
-                    </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
 
-                    {/* Stats and Actions */}
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-4 text-sm text-gray-500">
-                        <span className="flex items-center gap-1">
-                          <Heart className="w-4 h-4" />
-                          {poem.likes}
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <Download className="w-4 h-4" />
-                          {poem.downloads}
-                        </span>
-                      </div>
-                      <Button size="sm" variant="outline">
-                        <Download className="w-4 h-4 mr-2" />
-                        Download
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-
-        {/* All Audio List */}
-        <div>
-          <h2 className="text-2xl font-bold mb-4 text-gray-800">All Audio Poems</h2>
-          <div className="space-y-4">
-            {filteredAudio.map((poem) => (
-              <Card key={poem.id} className="hover:shadow-md transition-all duration-300">
-                <CardContent className="p-6">
-                  <div className="flex items-center gap-4">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => togglePlay(poem.id)}
-                      className="w-12 h-12 rounded-full bg-purple-600 hover:bg-purple-700 text-white flex-shrink-0"
-                    >
-                      {playingId === poem.id ? (
-                        <Pause className="w-5 h-5" />
-                      ) : (
-                        <Play className="w-5 h-5 ml-1" />
-                      )}
-                    </Button>
-
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-gray-800 truncate">{poem.title}</h3>
-                      <p className="text-purple-600 text-sm">by {poem.author}</p>
-                      <p className="text-gray-500 text-sm">Narrated by {poem.narrator}</p>
-                      {playingId === poem.id && (
-                        <Progress value={progress} className="w-full mt-2" />
-                      )}
-                    </div>
-
-                    <div className="flex items-center gap-4 text-sm text-gray-500">
-                      <span>{poem.duration}</span>
-                      <span className="flex items-center gap-1">
-                        <Heart className="w-4 h-4" />
-                        {poem.likes}
-                      </span>
-                      <Button size="sm" variant="ghost">
-                        <Download className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-
-        {/* Load More */}
-        <div className="text-center mt-8">
-          <Button variant="outline" size="lg">
-            Load More Audio
-          </Button>
-        </div>
+            {/* Load More */}
+            <div className="text-center mt-8">
+              <Button variant="outline" size="lg">
+                Load More Audio
+              </Button>
+            </div>
+          </>
+        )}
       </div>
+
+      <BottomNavigation />
     </div>
   );
 };

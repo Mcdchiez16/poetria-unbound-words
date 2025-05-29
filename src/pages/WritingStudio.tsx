@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Save, Share2, Eye, PenTool, Type, Palette } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -12,6 +11,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import BottomNavigation from "@/components/BottomNavigation";
+import LoginButton from "@/components/LoginButton";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const WritingStudio = () => {
   const [title, setTitle] = useState("");
@@ -24,6 +25,7 @@ const WritingStudio = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
 
   const fontOptions = [
     { value: "serif", name: "Serif" },
@@ -69,6 +71,7 @@ const WritingStudio = () => {
           content: content.trim(),
           category,
           user_id: user.id,
+          is_audio: false, // This is a written poem, not an audio one
         });
 
       if (error) {
@@ -77,22 +80,35 @@ const WritingStudio = () => {
 
       toast({
         title: "Poem saved!",
-        description: "Your poem has been saved successfully.",
+        description: "Your poem has been saved successfully to your library.",
       });
 
-      // Clear the form after saving
-      setTitle("");
-      setContent("");
-      setCategory("free_verse");
-    } catch (error) {
+      // Keep the poem in the editor in case they want to continue editing
+      // but let them know it was saved successfully
+    } catch (error: any) {
       console.error('Error saving poem:', error);
       toast({
         title: "Error saving poem",
-        description: "There was an error saving your poem. Please try again.",
+        description: error.message || "There was an error saving your poem. Please try again.",
         variant: "destructive",
       });
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleNew = () => {
+    // Confirm before clearing if there's content
+    if (title.trim() || content.trim()) {
+      if (confirm("Create a new poem? Your current work will be cleared.")) {
+        setTitle("");
+        setContent("");
+        setCategory("free_verse");
+      }
+    } else {
+      setTitle("");
+      setContent("");
+      setCategory("free_verse");
     }
   };
 
@@ -117,6 +133,7 @@ const WritingStudio = () => {
               </h1>
             </div>
             <div className="hidden sm:flex items-center gap-2">
+              <LoginButton />
               <Button variant="outline" className="flex items-center gap-2 text-sm">
                 <Eye className="w-4 h-4" />
                 <span className="hidden lg:inline">Preview</span>
@@ -130,12 +147,21 @@ const WritingStudio = () => {
                 <Save className="w-4 h-4" />
                 <span className="hidden lg:inline">{saving ? "Saving..." : "Save"}</span>
               </Button>
-              <Button className="bg-purple-600 hover:bg-purple-700 flex items-center gap-2 text-sm">
-                <Share2 className="w-4 h-4" />
-                <span className="hidden lg:inline">Publish</span>
+              <Button 
+                size="sm" 
+                className="flex-1 bg-purple-600 hover:bg-purple-700"
+                onClick={handleNew}
+              >
+                <Share2 className="w-4 h-4 mr-1" />
+                New
               </Button>
             </div>
           </div>
+          {isMobile && (
+            <div className="mt-2 flex justify-end">
+              <LoginButton />
+            </div>
+          )}
         </div>
       </header>
 
@@ -187,9 +213,13 @@ const WritingStudio = () => {
                 <Save className="w-4 h-4 mr-1" />
                 {saving ? "Saving..." : "Save"}
               </Button>
-              <Button size="sm" className="flex-1 bg-purple-600 hover:bg-purple-700">
+              <Button 
+                size="sm" 
+                className="flex-1 bg-purple-600 hover:bg-purple-700"
+                onClick={handleNew}
+              >
                 <Share2 className="w-4 h-4 mr-1" />
-                Publish
+                New
               </Button>
             </div>
 

@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from "react";
-import { Mic, Play, Pause, Square, Volume2, Award, Save } from "lucide-react";
+import { Mic, Play, Pause, Square, Volume2, Award, Save, Share2, BookOpen, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -12,6 +12,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 const RecitationStudio = () => {
   const [isRecording, setIsRecording] = useState(false);
@@ -21,10 +22,36 @@ const RecitationStudio = () => {
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
   const [recordingInterval, setRecordingInterval] = useState<number | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [publishing, setPublishing] = useState(false);
   
   const { toast } = useToast();
   const { user } = useAuth();
   const isMobile = useIsMobile();
+  const queryClient = useQueryClient();
+
+  // Fetch user's saved audio recordings
+  const { data: savedAudios = [], refetch } = useQuery({
+    queryKey: ["userAudios", user?.id],
+    queryFn: async () => {
+      if (!user) return [];
+      
+      const { data, error } = await supabase
+        .from('poems')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('is_audio', true)
+        .order('updated_at', { ascending: false });
+      
+      if (error) {
+        console.error('Error fetching audio recordings:', error);
+        return [];
+      }
+      
+      return data || [];
+    },
+    enabled: !!user,
+  });
 
   const practicePoems = [
     {
@@ -120,7 +147,7 @@ const RecitationStudio = () => {
     }
   };
 
-  const saveRecording = async () => {
+  const saveRecording = async (isDraft = true) => {
     if (!audioBlob || !user) {
       toast({
         title: "Cannot save recording",
@@ -130,14 +157,10 @@ const RecitationStudio = () => {
       return;
     }
 
-    try {
-      toast({
-        title: "Saving recording...",
-      });
+    setSaving(true);
 
-      // Upload audio file to storage or save reference in database
-      // For now, we'll just simulate saving by creating a poem entry
-      const poemTitle = practicePoems[selectedPoem].title + " (Recitation)";
+    try {
+      const poemTitle = practicePoems[selectedPoem].title + (isDraft ? " (Draft Recording)" : " (Recording)");
       
       const { error } = await supabase
         .from('poems')
@@ -152,15 +175,57 @@ const RecitationStudio = () => {
       if (error) throw error;
 
       toast({
-        title: "Recording saved!",
-        description: "Your recitation has been stored in your audio library",
+        title: isDraft ? "Recording saved as draft!" : "Recording published!",
+        description: isDraft ? "Your recording has been saved to your collection" : "Your recording is now available in the audio library",
       });
+
+      refetch();
+      queryClient.invalidateQueries({ queryKey: ["audioPoems"] });
+      
+      // Clear the current recording
+      setAudioBlob(null);
+      setRecordingTime(0);
     } catch (err) {
       console.error('Error saving recording:', err);
       toast({
         title: "Failed to save recording",
         description: "Please try again later",
         variant: "destructive"
+      });
+    } finally {
+      setSaving(false);
+      setPublishing(false);
+    }
+  };
+
+  const publishRecording = async () => {
+    setPublishing(true);
+    await saveRecording(false);
+  };
+
+  const deleteRecording = async (recordingId: string) => {
+    if (!confirm("Are you sure you want to delete this recording?")) return;
+
+    try {
+      const { error } = await supabase
+        .from('poems')
+        .delete()
+        .eq('id', recordingId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Recording deleted",
+        description: "Your recording has been deleted successfully.",
+      });
+
+      refetch();
+      queryClient.invalidateQueries({ queryKey: ["audioPoems"] });
+    } catch (error: any) {
+      toast({
+        title: "Error deleting recording",
+        description: error.message || "Failed to delete recording.",
+        variant: "destructive",
       });
     }
   };
@@ -202,9 +267,10 @@ const RecitationStudio = () => {
 
       <div className="container mx-auto px-4 sm:px-6 py-6 sm:py-8">
         <Tabs defaultValue="practice" className="w-full">
-          <TabsList className="grid w-full grid-cols-3 mb-6">
+          <TabsList className="grid w-full grid-cols-4 mb-6">
             <TabsTrigger value="practice">Practice</TabsTrigger>
             <TabsTrigger value="record">Record</TabsTrigger>
+            {user && <TabsTrigger value="saved">My Recordings</TabsTrigger>}
             <TabsTrigger value="achievements">Achievements</TabsTrigger>
           </TabsList>
 
@@ -332,11 +398,20 @@ const RecitationStudio = () => {
                             {isPlaying ? "Pause" : "Play"}
                           </Button>
                           <Button 
-                            className="bg-purple-600 hover:bg-purple-700"
-                            onClick={saveRecording}
+                            variant="outline"
+                            onClick={() => saveRecording(true)}
+                            disabled={saving || publishing}
                           >
                             <Save className="w-4 h-4 mr-2" />
-                            Save Recording
+                            {saving ? "Saving..." : "Save Draft"}
+                          </Button>
+                          <Button 
+                            className="bg-green-600 hover:bg-green-700"
+                            onClick={publishRecording}
+                            disabled={saving || publishing}
+                          >
+                            <Share2 className="w-4 h-4 mr-2" />
+                            {publishing ? "Publishing..." : "Publish"}
                           </Button>
                         </div>
                       </div>
@@ -377,6 +452,66 @@ const RecitationStudio = () => {
               </Card>
             </div>
           </TabsContent>
+
+          {user && (
+            <TabsContent value="saved" className="space-y-6">
+              <div className="max-w-4xl mx-auto">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <BookOpen className="w-5 h-5 sm:w-6 sm:h-6" />
+                      My Audio Recordings ({savedAudios.length})
+                    </CardTitle>
+                    <p className="text-gray-600">
+                      Your saved and published audio recordings
+                    </p>
+                  </CardHeader>
+                  <CardContent>
+                    {savedAudios.length > 0 ? (
+                      <div className="space-y-4">
+                        {savedAudios.map((audio) => (
+                          <Card key={audio.id} className="hover:shadow-md transition-all duration-300">
+                            <CardContent className="p-4">
+                              <div className="flex items-center justify-between">
+                                <div className="flex-1 min-w-0">
+                                  <h3 className="font-semibold text-gray-800 truncate">{audio.title}</h3>
+                                  <p className="text-purple-600 text-sm">Category: {audio.category}</p>
+                                  <p className="text-gray-500 text-sm">
+                                    Recorded: {new Date(audio.created_at).toLocaleDateString()}
+                                  </p>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => deleteRecording(audio.id)}
+                                    className="text-red-500 hover:text-red-700"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-8">
+                        <Mic className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                        <p className="text-gray-500 mb-4">No recordings yet</p>
+                        <Button 
+                          onClick={() => document.querySelector('[value="record"]')?.click()}
+                          className="bg-purple-600 hover:bg-purple-700"
+                        >
+                          Make Your First Recording
+                        </Button>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+            </TabsContent>
+          )}
 
           <TabsContent value="achievements" className="space-y-6">
             <div className="max-w-4xl mx-auto">

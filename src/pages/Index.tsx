@@ -1,10 +1,40 @@
-import { BookOpen, Mic, PenTool, Volume2, Calendar, Sparkles, Heart, Users, Quote } from "lucide-react";
+
+import { BookOpen, Mic, PenTool, Volume2, Calendar, Sparkles, Heart, Users, Quote, User } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import BottomNavigation from "@/components/BottomNavigation";
+import LoginButton from "@/components/LoginButton";
+import { useAuth } from "@/contexts/AuthContext";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 const Index = () => {
+  const { user } = useAuth();
+
+  // Fetch user's recent poems
+  const { data: recentPoems = [] } = useQuery({
+    queryKey: ["recentPoems", user?.id],
+    queryFn: async () => {
+      if (!user) return [];
+      
+      const { data, error } = await supabase
+        .from('poems')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('updated_at', { ascending: false })
+        .limit(3);
+      
+      if (error) {
+        console.error('Error fetching recent poems:', error);
+        return [];
+      }
+      
+      return data || [];
+    },
+    enabled: !!user,
+  });
+
   const features = [
     {
       icon: BookOpen,
@@ -49,6 +79,159 @@ const Index = () => {
     excerpt: "Two roads diverged in a yellow wood,\nAnd sorry I could not travel both..."
   };
 
+  // If user is logged in, show personalized dashboard
+  if (user) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-blue-50 pb-20 md:pb-0">
+        {/* Header */}
+        <header className="bg-white/80 backdrop-blur-sm border-b border-purple-100 sticky top-0 z-40">
+          <div className="container mx-auto px-4 sm:px-6 py-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <div className="w-8 h-8 bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg flex items-center justify-center">
+                  <BookOpen className="w-5 h-5 text-white" />
+                </div>
+                <h1 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
+                  Poetria
+                </h1>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="hidden md:flex items-center gap-2 text-sm text-gray-600">
+                  <User className="w-4 h-4" />
+                  Welcome, {user.user_metadata?.full_name || user.email?.split('@')[0]}
+                </div>
+                <LoginButton />
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <div className="container mx-auto px-4 sm:px-6 py-8">
+          {/* Welcome Section */}
+          <div className="text-center mb-8">
+            <h2 className="text-2xl sm:text-3xl font-bold mb-4 text-gray-800">
+              Welcome back to your poetry journey!
+            </h2>
+            <p className="text-gray-600 mb-6">
+              Continue creating, exploring, and sharing your love for poetry.
+            </p>
+          </div>
+
+          {/* Quick Actions */}
+          <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
+            {features.map((feature, index) => (
+              <Link key={index} to={feature.link} className="group">
+                <Card className="h-full hover:shadow-lg transition-all duration-300 hover:-translate-y-1 border-purple-100 hover:border-purple-200">
+                  <CardContent className="p-4 text-center">
+                    <div className={`w-12 h-12 bg-gradient-to-r ${feature.gradient} rounded-full flex items-center justify-center mx-auto mb-3 group-hover:scale-110 transition-transform duration-300`}>
+                      <feature.icon className="w-6 h-6 text-white" />
+                    </div>
+                    <h3 className="font-semibold text-sm text-gray-800 mb-1">{feature.title}</h3>
+                    <p className="text-xs text-gray-600 leading-tight">{feature.description}</p>
+                  </CardContent>
+                </Card>
+              </Link>
+            ))}
+          </div>
+
+          {/* Recent Activity */}
+          <div className="grid md:grid-cols-2 gap-6 mb-8">
+            {/* Recent Poems */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <PenTool className="w-5 h-5 text-purple-600" />
+                  Recent Poems
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {recentPoems.length > 0 ? (
+                  <div className="space-y-3">
+                    {recentPoems.map((poem) => (
+                      <div key={poem.id} className="p-3 bg-purple-50 rounded-lg">
+                        <h4 className="font-medium text-sm text-gray-800">{poem.title}</h4>
+                        <p className="text-xs text-gray-500 mt-1">
+                          {new Date(poem.updated_at).toLocaleDateString()}
+                        </p>
+                      </div>
+                    ))}
+                    <Link to="/write">
+                      <Button variant="outline" size="sm" className="w-full mt-3">
+                        View All Poems
+                      </Button>
+                    </Link>
+                  </div>
+                ) : (
+                  <div className="text-center py-6">
+                    <p className="text-gray-500 mb-3">No poems yet</p>
+                    <Link to="/write">
+                      <Button size="sm" className="bg-purple-600 hover:bg-purple-700">
+                        Write Your First Poem
+                      </Button>
+                    </Link>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Today's Featured Poem */}
+            <Card className="bg-gradient-to-r from-purple-100 to-blue-100 border-purple-200">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-purple-800">
+                  <Quote className="w-5 h-5" />
+                  Today's Featured Poem
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <h3 className="font-semibold text-lg mb-2 text-gray-800">{todaysPoem.title}</h3>
+                <p className="text-sm text-purple-600 mb-4">by {todaysPoem.author}</p>
+                <blockquote className="italic text-gray-700 leading-relaxed text-sm">
+                  "{todaysPoem.excerpt}"
+                </blockquote>
+                <Link to="/daily">
+                  <Button className="mt-4 bg-purple-600 hover:bg-purple-700" size="sm">
+                    Read Full Poem
+                  </Button>
+                </Link>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Stats */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <Card>
+              <CardContent className="pt-6 text-center">
+                <div className="text-2xl font-bold text-purple-600 mb-2">{recentPoems.length}</div>
+                <div className="text-gray-600 text-sm">Your Poems</div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-6 text-center">
+                <div className="text-2xl font-bold text-purple-600 mb-2">0</div>
+                <div className="text-gray-600 text-sm">Audio Recordings</div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-6 text-center">
+                <div className="text-2xl font-bold text-purple-600 mb-2">10K+</div>
+                <div className="text-gray-600 text-sm">Community Poems</div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-6 text-center">
+                <div className="text-2xl font-bold text-purple-600 mb-2">5K+</div>
+                <div className="text-gray-600 text-sm">Audio Library</div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+
+        <BottomNavigation />
+      </div>
+    );
+  }
+
+  // Original homepage for non-logged-in users
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-blue-50 pb-20 md:pb-0">
       {/* Header */}

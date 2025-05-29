@@ -1,5 +1,6 @@
-import { useState } from "react";
-import { Save, Share2, Eye, PenTool, Type, Palette } from "lucide-react";
+
+import { useState, useEffect } from "react";
+import { Save, Share2, Eye, PenTool, Type, Palette, BookOpen, Trash2, Edit3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -13,6 +14,7 @@ import { useNavigate } from "react-router-dom";
 import BottomNavigation from "@/components/BottomNavigation";
 import LoginButton from "@/components/LoginButton";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 const WritingStudio = () => {
   const [title, setTitle] = useState("");
@@ -21,11 +23,37 @@ const WritingStudio = () => {
   const [fontSize, setFontSize] = useState([16]);
   const [fontFamily, setFontFamily] = useState("serif");
   const [saving, setSaving] = useState(false);
+  const [publishing, setPublishing] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
+  const queryClient = useQueryClient();
+
+  // Fetch user's saved poems
+  const { data: savedPoems = [], refetch } = useQuery({
+    queryKey: ["userPoems", user?.id],
+    queryFn: async () => {
+      if (!user) return [];
+      
+      const { data, error } = await supabase
+        .from('poems')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('is_audio', false)
+        .order('updated_at', { ascending: false });
+      
+      if (error) {
+        console.error('Error fetching poems:', error);
+        return [];
+      }
+      
+      return data || [];
+    },
+    enabled: !!user,
+  });
 
   const fontOptions = [
     { value: "serif", name: "Serif" },
@@ -41,7 +69,7 @@ const WritingStudio = () => {
     { name: "Limerick", structure: "5 lines, AABBA rhyme scheme", category: "limerick" }
   ];
 
-  const handleSave = async () => {
+  const handleSave = async (isDraft = true) => {
     if (!user) {
       toast({
         title: "Please sign in",
@@ -64,27 +92,47 @@ const WritingStudio = () => {
     setSaving(true);
 
     try {
-      const { error } = await supabase
-        .from('poems')
-        .insert({
-          title: title.trim(),
-          content: content.trim(),
-          category,
-          user_id: user.id,
-          is_audio: false, // This is a written poem, not an audio one
-        });
+      if (editingId) {
+        // Update existing poem
+        const { error } = await supabase
+          .from('poems')
+          .update({
+            title: title.trim(),
+            content: content.trim(),
+            category,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', editingId);
 
-      if (error) {
-        throw error;
+        if (error) throw error;
+        
+        toast({
+          title: "Poem updated!",
+          description: "Your poem has been updated successfully.",
+        });
+      } else {
+        // Create new poem
+        const { error } = await supabase
+          .from('poems')
+          .insert({
+            title: title.trim(),
+            content: content.trim(),
+            category,
+            user_id: user.id,
+            is_audio: false,
+          });
+
+        if (error) throw error;
+        
+        toast({
+          title: "Poem saved!",
+          description: isDraft ? "Your poem has been saved as a draft." : "Your poem has been published!",
+        });
       }
 
-      toast({
-        title: "Poem saved!",
-        description: "Your poem has been saved successfully to your library.",
-      });
-
-      // Keep the poem in the editor in case they want to continue editing
-      // but let them know it was saved successfully
+      refetch();
+      queryClient.invalidateQueries({ queryKey: ["poems"] });
+      
     } catch (error: any) {
       console.error('Error saving poem:', error);
       toast({
@@ -94,21 +142,66 @@ const WritingStudio = () => {
       });
     } finally {
       setSaving(false);
+      setPublishing(false);
     }
   };
 
+  const handlePublish = async () => {
+    setPublishing(true);
+    await handleSave(false);
+  };
+
   const handleNew = () => {
-    // Confirm before clearing if there's content
     if (title.trim() || content.trim()) {
       if (confirm("Create a new poem? Your current work will be cleared.")) {
         setTitle("");
         setContent("");
         setCategory("free_verse");
+        setEditingId(null);
       }
     } else {
       setTitle("");
       setContent("");
       setCategory("free_verse");
+      setEditingId(null);
+    }
+  };
+
+  const handleEdit = (poem: any) => {
+    setTitle(poem.title);
+    setContent(poem.content);
+    setCategory(poem.category || "free_verse");
+    setEditingId(poem.id);
+  };
+
+  const handleDelete = async (poemId: string) => {
+    if (!confirm("Are you sure you want to delete this poem?")) return;
+
+    try {
+      const { error } = await supabase
+        .from('poems')
+        .delete()
+        .eq('id', poemId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Poem deleted",
+        description: "Your poem has been deleted successfully.",
+      });
+
+      refetch();
+      
+      // Clear editor if we were editing this poem
+      if (editingId === poemId) {
+        handleNew();
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error deleting poem",
+        description: error.message || "Failed to delete poem.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -141,18 +234,25 @@ const WritingStudio = () => {
               <Button 
                 variant="outline" 
                 className="flex items-center gap-2 text-sm"
-                onClick={handleSave}
-                disabled={saving}
+                onClick={() => handleSave(true)}
+                disabled={saving || publishing}
               >
                 <Save className="w-4 h-4" />
-                <span className="hidden lg:inline">{saving ? "Saving..." : "Save"}</span>
+                <span className="hidden lg:inline">{saving ? "Saving..." : "Save Draft"}</span>
+              </Button>
+              <Button 
+                className="flex items-center gap-2 text-sm bg-green-600 hover:bg-green-700"
+                onClick={handlePublish}
+                disabled={saving || publishing}
+              >
+                <Share2 className="w-4 h-4" />
+                <span className="hidden lg:inline">{publishing ? "Publishing..." : "Publish"}</span>
               </Button>
               <Button 
                 size="sm" 
-                className="flex-1 bg-purple-600 hover:bg-purple-700"
+                variant="outline"
                 onClick={handleNew}
               >
-                <Share2 className="w-4 h-4 mr-1" />
                 New
               </Button>
             </div>
@@ -177,6 +277,11 @@ const WritingStudio = () => {
                   onChange={(e) => setTitle(e.target.value)}
                   className="text-lg sm:text-2xl font-bold border-none shadow-none p-0 focus-visible:ring-0"
                 />
+                {editingId && (
+                  <div className="text-sm text-purple-600 font-medium">
+                    Editing saved poem
+                  </div>
+                )}
               </CardHeader>
               <CardContent>
                 <Textarea
@@ -207,21 +312,75 @@ const WritingStudio = () => {
                 variant="outline" 
                 size="sm" 
                 className="flex-1"
-                onClick={handleSave}
-                disabled={saving}
+                onClick={() => handleSave(true)}
+                disabled={saving || publishing}
               >
                 <Save className="w-4 h-4 mr-1" />
                 {saving ? "Saving..." : "Save"}
               </Button>
               <Button 
                 size="sm" 
-                className="flex-1 bg-purple-600 hover:bg-purple-700"
-                onClick={handleNew}
+                className="flex-1 bg-green-600 hover:bg-green-700"
+                onClick={handlePublish}
+                disabled={saving || publishing}
               >
                 <Share2 className="w-4 h-4 mr-1" />
+                {publishing ? "Publishing..." : "Publish"}
+              </Button>
+              <Button 
+                size="sm" 
+                variant="outline"
+                onClick={handleNew}
+              >
                 New
               </Button>
             </div>
+
+            {/* Saved Poems */}
+            {user && savedPoems.length > 0 && (
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                    <BookOpen className="w-4 h-4 sm:w-5 sm:h-5" />
+                    My Poems ({savedPoems.length})
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                    {savedPoems.map((poem) => (
+                      <div key={poem.id} className="p-3 border border-gray-200 rounded-lg hover:bg-gray-50">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex-1 min-w-0">
+                            <h4 className="font-medium text-sm truncate">{poem.title}</h4>
+                            <p className="text-xs text-gray-500 mt-1">
+                              {new Date(poem.updated_at).toLocaleDateString()}
+                            </p>
+                          </div>
+                          <div className="flex gap-1">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => handleEdit(poem)}
+                              className="h-8 w-8 p-0"
+                            >
+                              <Edit3 className="w-3 h-3" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => handleDelete(poem.id)}
+                              className="h-8 w-8 p-0 text-red-500 hover:text-red-700"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
             {/* Writing Tools */}
             <Card>

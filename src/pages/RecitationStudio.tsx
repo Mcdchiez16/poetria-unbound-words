@@ -1,9 +1,8 @@
 
 import { useState, useEffect } from "react";
-import { Mic, Play, Pause, Square, Volume2, Award, Save, Share2, BookOpen, Trash2 } from "lucide-react";
+import { Mic, Play, Pause, Square, Volume2, Save, Share2, BookOpen, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import BottomNavigation from "@/components/BottomNavigation";
@@ -53,29 +52,51 @@ const RecitationStudio = () => {
     enabled: !!user,
   });
 
-  const practicePoems = [
-    {
-      id: 1,
-      title: "The Road Not Taken",
-      author: "Robert Frost",
-      difficulty: "Beginner",
-      text: "Two roads diverged in a yellow wood,\nAnd sorry I could not travel both\nAnd be one traveler, long I stood\nAnd looked down one as far as I could\nTo where it bent in the undergrowth;"
+  // Fetch practice poems from database instead of hardcoded
+  const { data: practicePoems = [] } = useQuery({
+    queryKey: ["practicePoems"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('poems')
+        .select('*')
+        .eq('category', 'classic')
+        .limit(10);
+      
+      if (error) {
+        console.error('Error fetching practice poems:', error);
+        // Fallback to sample data if database is empty
+        return [
+          {
+            id: 1,
+            title: "The Road Not Taken",
+            content: "Two roads diverged in a yellow wood,\nAnd sorry I could not travel both\nAnd be one traveler, long I stood\nAnd looked down one as far as I could\nTo where it bent in the undergrowth;",
+            category: "classic"
+          },
+          {
+            id: 2,
+            title: "If—",
+            content: "If you can keep your head when all about you\nAre losing theirs and blaming it on you,\nIf you can trust yourself when all men doubt you,\nBut make allowance for their doubting too;",
+            category: "classic"
+          }
+        ];
+      }
+      
+      return data?.length > 0 ? data : [
+        {
+          id: 1,
+          title: "The Road Not Taken",
+          content: "Two roads diverged in a yellow wood,\nAnd sorry I could not travel both\nAnd be one traveler, long I stood\nAnd looked down one as far as I could\nTo where it bent in the undergrowth;",
+          category: "classic"
+        },
+        {
+          id: 2,
+          title: "If—",
+          content: "If you can keep your head when all about you\nAre losing theirs and blaming it on you,\nIf you can trust yourself when all men doubt you,\nBut make allowance for their doubting too;",
+          category: "classic"
+        }
+      ];
     },
-    {
-      id: 2,
-      title: "If—",
-      author: "Rudyard Kipling",
-      difficulty: "Intermediate",
-      text: "If you can keep your head when all about you\nAre losing theirs and blaming it on you,\nIf you can trust yourself when all men doubt you,\nBut make allowance for their doubting too;"
-    }
-  ];
-
-  const achievements = [
-    { name: "First Recording", earned: true, icon: "🎤" },
-    { name: "Daily Practice", earned: true, icon: "📅" },
-    { name: "Perfect Rhythm", earned: false, icon: "🎵" },
-    { name: "Poetry Master", earned: false, icon: "👑" }
-  ];
+  });
 
   const startRecording = async () => {
     try {
@@ -160,14 +181,15 @@ const RecitationStudio = () => {
     setSaving(true);
 
     try {
-      const poemTitle = practicePoems[selectedPoem].title + (isDraft ? " (Draft Recording)" : " (Recording)");
+      const selectedPoemData = practicePoems[selectedPoem];
+      const poemTitle = selectedPoemData?.title + (isDraft ? " (Draft Recording)" : " (Recording)");
       
       const { error } = await supabase
         .from('poems')
         .insert({
           user_id: user.id,
           title: poemTitle,
-          content: practicePoems[selectedPoem].text,
+          content: selectedPoemData?.content || "Custom recording",
           category: "recitation",
           is_audio: true
         });
@@ -236,6 +258,13 @@ const RecitationStudio = () => {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
+  const switchToRecordTab = () => {
+    const recordTab = document.querySelector('[data-state="inactive"][value="record"]') as HTMLElement;
+    if (recordTab) {
+      recordTab.click();
+    }
+  };
+
   // Cleanup
   useEffect(() => {
     return () => {
@@ -260,18 +289,19 @@ const RecitationStudio = () => {
                 Recitation Studio
               </h1>
             </div>
-            <LoginButton />
+            <div className="hidden md:block">
+              <LoginButton />
+            </div>
           </div>
         </div>
       </header>
 
       <div className="container mx-auto px-4 sm:px-6 py-6 sm:py-8">
         <Tabs defaultValue="practice" className="w-full">
-          <TabsList className="grid w-full grid-cols-4 mb-6">
+          <TabsList className="grid w-full grid-cols-3 mb-6">
             <TabsTrigger value="practice">Practice</TabsTrigger>
             <TabsTrigger value="record">Record</TabsTrigger>
             {user && <TabsTrigger value="saved">My Recordings</TabsTrigger>}
-            <TabsTrigger value="achievements">Achievements</TabsTrigger>
           </TabsList>
 
           <TabsContent value="practice" className="space-y-6">
@@ -294,12 +324,11 @@ const RecitationStudio = () => {
                       >
                         <div>
                           <div className="font-medium">{poem.title}</div>
-                          <div className="text-sm opacity-70">by {poem.author}</div>
                           <Badge 
                             variant="secondary" 
                             className="mt-1 text-xs"
                           >
-                            {poem.difficulty}
+                            {poem.category}
                           </Badge>
                         </div>
                       </Button>
@@ -312,13 +341,12 @@ const RecitationStudio = () => {
               <div className="lg:col-span-2">
                 <Card>
                   <CardHeader>
-                    <CardTitle>{practicePoems[selectedPoem].title}</CardTitle>
-                    <p className="text-purple-600">by {practicePoems[selectedPoem].author}</p>
+                    <CardTitle>{practicePoems[selectedPoem]?.title}</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="bg-gray-50 p-4 sm:p-6 rounded-lg mb-6">
                       <pre className="text-base sm:text-lg leading-relaxed font-serif whitespace-pre-wrap">
-                        {practicePoems[selectedPoem].text}
+                        {practicePoems[selectedPoem]?.content}
                       </pre>
                     </div>
                     
@@ -327,8 +355,12 @@ const RecitationStudio = () => {
                         <Volume2 className="w-4 h-4 mr-2" />
                         Listen to Example
                       </Button>
-                      <Button variant="outline" className="w-full sm:w-auto">
-                        Start Guided Practice
+                      <Button 
+                        variant="outline" 
+                        className="w-full sm:w-auto"
+                        onClick={switchToRecordTab}
+                      >
+                        Start Recording
                       </Button>
                     </div>
                   </CardContent>
@@ -500,7 +532,7 @@ const RecitationStudio = () => {
                         <Mic className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                         <p className="text-gray-500 mb-4">No recordings yet</p>
                         <Button 
-                          onClick={() => document.querySelector('[value="record"]')?.click()}
+                          onClick={switchToRecordTab}
                           className="bg-purple-600 hover:bg-purple-700"
                         >
                           Make Your First Recording
@@ -512,72 +544,6 @@ const RecitationStudio = () => {
               </div>
             </TabsContent>
           )}
-
-          <TabsContent value="achievements" className="space-y-6">
-            <div className="max-w-4xl mx-auto">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Award className="w-5 h-5 sm:w-6 sm:h-6" />
-                    Your Achievements
-                  </CardTitle>
-                  <p className="text-gray-600">
-                    Track your progress and unlock new achievements
-                  </p>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid sm:grid-cols-2 gap-4">
-                    {achievements.map((achievement, index) => (
-                      <div
-                        key={index}
-                        className={`p-3 sm:p-4 rounded-lg border-2 ${
-                          achievement.earned
-                            ? "border-green-200 bg-green-50"
-                            : "border-gray-200 bg-gray-50"
-                        }`}
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="text-xl sm:text-2xl">{achievement.icon}</div>
-                          <div>
-                            <div className={`font-medium ${
-                              achievement.earned ? "text-green-800" : "text-gray-600"
-                            }`}>
-                              {achievement.name}
-                            </div>
-                            <div className="text-xs sm:text-sm text-gray-500">
-                              {achievement.earned ? "Completed!" : "In progress..."}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Progress Stats */}
-              <div className="grid sm:grid-cols-3 gap-4 sm:gap-6 mt-6">
-                <Card>
-                  <CardContent className="pt-6 text-center">
-                    <div className="text-2xl sm:text-3xl font-bold text-purple-600 mb-2">12</div>
-                    <div className="text-sm text-gray-500">Poems Practiced</div>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="pt-6 text-center">
-                    <div className="text-2xl sm:text-3xl font-bold text-purple-600 mb-2">5</div>
-                    <div className="text-sm text-gray-500">Recordings Made</div>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="pt-6 text-center">
-                    <div className="text-2xl sm:text-3xl font-bold text-purple-600 mb-2">7</div>
-                    <div className="text-sm text-gray-500">Day Streak</div>
-                  </CardContent>
-                </Card>
-              </div>
-            </div>
-          </TabsContent>
         </Tabs>
       </div>
 

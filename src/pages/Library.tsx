@@ -1,65 +1,115 @@
 
 import { useState } from "react";
-import { Search, Filter, BookOpen, Heart, Share2 } from "lucide-react";
+import { Search, Filter, BookOpen, Heart, Share2, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import BottomNavigation from "@/components/BottomNavigation";
+import LoginButton from "@/components/LoginButton";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useToast } from "@/hooks/use-toast";
 
 const Library = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
+  const [likedPoems, setLikedPoems] = useState<string[]>([]);
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const categories = [
-    "all", "classic", "modern", "romantic", "nature", "spiritual", "social"
+    "all", "classic", "modern", "romantic", "nature", "spiritual", "social", "free_verse"
   ];
 
-  const poems = [
-    {
-      id: 1,
-      title: "The Road Not Taken",
-      author: "Robert Frost",
-      category: "classic",
-      excerpt: "Two roads diverged in a yellow wood, And sorry I could not travel both...",
-      likes: 1247,
-      tags: ["nature", "choice", "life"]
-    },
-    {
-      id: 2,
-      title: "Still I Rise",
-      author: "Maya Angelou",
-      category: "modern",
-      excerpt: "You may write me down in history With your bitter, twisted lies...",
-      likes: 2103,
-      tags: ["empowerment", "resilience", "social"]
-    },
-    {
-      id: 3,
-      title: "How Do I Love Thee?",
-      author: "Elizabeth Barrett Browning",
-      category: "romantic",
-      excerpt: "How do I love thee? Let me count the ways...",
-      likes: 1876,
-      tags: ["love", "sonnet", "classic"]
-    },
-    {
-      id: 4,
-      title: "The Guest House",
-      author: "Rumi",
-      category: "spiritual",
-      excerpt: "This being human is a guest house. Every morning a new arrival...",
-      likes: 956,
-      tags: ["wisdom", "acceptance", "spiritual"]
-    }
-  ];
+  // Fetch poems from database
+  const { data: poems = [], isLoading } = useQuery({
+    queryKey: ["poems", selectedCategory, searchTerm],
+    queryFn: async () => {
+      let query = supabase
+        .from('poems')
+        .select('*')
+        .order('created_at', { ascending: false });
 
-  const filteredPoems = poems.filter(poem => {
-    const matchesSearch = poem.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         poem.author.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = selectedCategory === "all" || poem.category === selectedCategory;
-    return matchesSearch && matchesCategory;
+      if (selectedCategory !== "all") {
+        query = query.eq('category', selectedCategory);
+      }
+
+      if (searchTerm) {
+        query = query.or(`title.ilike.%${searchTerm}%, content.ilike.%${searchTerm}%`);
+      }
+
+      const { data, error } = await query;
+      
+      if (error) {
+        console.error('Error fetching poems:', error);
+        return [];
+      }
+      
+      return data || [];
+    },
   });
+
+  const sharePoem = async (poem: any) => {
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: poem.title,
+          text: `Check out this beautiful poem: "${poem.title}"`,
+          url: window.location.href,
+        });
+      } else {
+        // Fallback for browsers that don't support Web Share API
+        await navigator.clipboard.writeText(
+          `Check out this beautiful poem: "${poem.title}" - ${poem.content.substring(0, 100)}...`
+        );
+        toast({
+          title: "Link copied!",
+          description: "Poem details copied to clipboard",
+        });
+      }
+    } catch (error) {
+      console.error('Error sharing:', error);
+      toast({
+        title: "Share failed",
+        description: "Unable to share this poem",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const toggleLike = (poemId: string) => {
+    if (!user) {
+      toast({
+        title: "Sign in required",
+        description: "Please sign in to like poems",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setLikedPoems(prev => 
+      prev.includes(poemId) 
+        ? prev.filter(id => id !== poemId)
+        : [...prev, poemId]
+    );
+
+    toast({
+      title: likedPoems.includes(poemId) ? "Removed from favorites" : "Added to favorites",
+      description: likedPoems.includes(poemId) ? "Poem removed from your favorites" : "Poem added to your favorites",
+    });
+  };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-blue-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-blue-50 pb-20 md:pb-0">
@@ -72,6 +122,9 @@ const Library = () => {
               <h1 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
                 Poetry Library
               </h1>
+            </div>
+            <div className="hidden md:block">
+              <LoginButton />
             </div>
           </div>
         </div>
@@ -115,13 +168,13 @@ const Library = () => {
         {/* Results */}
         <div className="mb-4">
           <p className="text-gray-600 text-sm sm:text-base">
-            {filteredPoems.length} poem{filteredPoems.length !== 1 ? 's' : ''} found
+            {poems.length} poem{poems.length !== 1 ? 's' : ''} found
           </p>
         </div>
 
         {/* Poems Grid */}
         <div className="grid gap-4 sm:gap-6">
-          {filteredPoems.map((poem) => (
+          {poems.map((poem) => (
             <Card key={poem.id} className="hover:shadow-lg transition-all duration-300 border-purple-100">
               <CardHeader className="pb-3 sm:pb-4">
                 <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2">
@@ -129,7 +182,9 @@ const Library = () => {
                     <CardTitle className="text-lg sm:text-xl font-semibold text-gray-800 mb-2">
                       {poem.title}
                     </CardTitle>
-                    <p className="text-purple-600 font-medium text-sm sm:text-base">by {poem.author}</p>
+                    <p className="text-purple-600 font-medium text-sm sm:text-base">
+                      Created: {new Date(poem.created_at).toLocaleDateString()}
+                    </p>
                   </div>
                   <Badge variant="secondary" className="bg-purple-100 text-purple-700 self-start sm:self-auto text-xs">
                     {poem.category}
@@ -137,46 +192,125 @@ const Library = () => {
                 </div>
               </CardHeader>
               <CardContent>
-                <p className="text-gray-600 mb-4 leading-relaxed text-sm sm:text-base">
-                  {poem.excerpt}
+                <p className="text-gray-600 mb-4 leading-relaxed text-sm sm:text-base line-clamp-3">
+                  {poem.content.substring(0, 150)}...
                 </p>
-                
-                {/* Tags */}
-                <div className="flex flex-wrap gap-2 mb-4">
-                  {poem.tags.map((tag) => (
-                    <Badge key={tag} variant="outline" className="text-xs">
-                      {tag}
-                    </Badge>
-                  ))}
-                </div>
 
                 {/* Actions */}
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                   <div className="flex items-center gap-4">
-                    <Button variant="ghost" size="sm" className="flex items-center gap-2 text-gray-600 text-sm">
-                      <Heart className="w-4 h-4" />
-                      {poem.likes}
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className={`flex items-center gap-2 text-sm ${
+                        likedPoems.includes(poem.id) ? "text-red-500" : "text-gray-600"
+                      }`}
+                      onClick={() => toggleLike(poem.id)}
+                    >
+                      <Heart 
+                        className={`w-4 h-4 ${likedPoems.includes(poem.id) ? "fill-current" : ""}`}
+                      />
+                      Like
                     </Button>
-                    <Button variant="ghost" size="sm" className="flex items-center gap-2 text-gray-600 text-sm">
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="flex items-center gap-2 text-gray-600 text-sm"
+                      onClick={() => sharePoem(poem)}
+                    >
                       <Share2 className="w-4 h-4" />
                       Share
                     </Button>
                   </div>
-                  <Button className="bg-purple-600 hover:bg-purple-700 text-sm w-full sm:w-auto">
-                    Read Full Poem
-                  </Button>
+                  
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button className="bg-purple-600 hover:bg-purple-700 text-sm w-full sm:w-auto">
+                        <ExternalLink className="w-4 h-4 mr-2" />
+                        Read Full Poem
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+                      <DialogHeader>
+                        <DialogTitle className="text-xl font-bold text-purple-800">
+                          {poem.title}
+                        </DialogTitle>
+                      </DialogHeader>
+                      <div className="mt-4">
+                        <div className="mb-4">
+                          <Badge variant="secondary" className="bg-purple-100 text-purple-700">
+                            {poem.category}
+                          </Badge>
+                        </div>
+                        <div className="bg-gray-50 p-6 rounded-lg">
+                          <pre className="text-base leading-relaxed font-serif whitespace-pre-wrap text-gray-800">
+                            {poem.content}
+                          </pre>
+                        </div>
+                        <div className="mt-6 flex items-center justify-between">
+                          <div className="flex items-center gap-4">
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className={`flex items-center gap-2 ${
+                                likedPoems.includes(poem.id) ? "text-red-500 border-red-200" : ""
+                              }`}
+                              onClick={() => toggleLike(poem.id)}
+                            >
+                              <Heart 
+                                className={`w-4 h-4 ${likedPoems.includes(poem.id) ? "fill-current" : ""}`}
+                              />
+                              {likedPoems.includes(poem.id) ? "Liked" : "Like"}
+                            </Button>
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="flex items-center gap-2"
+                              onClick={() => sharePoem(poem)}
+                            >
+                              <Share2 className="w-4 h-4" />
+                              Share
+                            </Button>
+                          </div>
+                          <p className="text-sm text-gray-500">
+                            Created: {new Date(poem.created_at).toLocaleDateString()}
+                          </p>
+                        </div>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
                 </div>
               </CardContent>
             </Card>
           ))}
         </div>
 
+        {poems.length === 0 && (
+          <div className="text-center py-12">
+            <BookOpen className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-600 mb-2">No poems found</h3>
+            <p className="text-gray-500 mb-4">
+              {searchTerm || selectedCategory !== "all" 
+                ? "Try adjusting your search or filter criteria" 
+                : "Be the first to add a poem to the library!"}
+            </p>
+            <Button 
+              className="bg-purple-600 hover:bg-purple-700"
+              onClick={() => window.location.href = "/write"}
+            >
+              Write a Poem
+            </Button>
+          </div>
+        )}
+
         {/* Load More */}
-        <div className="text-center mt-6 sm:mt-8">
-          <Button variant="outline" size="lg" className="text-sm sm:text-base">
-            Load More Poems
-          </Button>
-        </div>
+        {poems.length > 0 && (
+          <div className="text-center mt-6 sm:mt-8">
+            <Button variant="outline" size="lg" className="text-sm sm:text-base">
+              Load More Poems
+            </Button>
+          </div>
+        )}
       </div>
 
       <BottomNavigation />

@@ -37,9 +37,9 @@ const BottomNavigation = () => {
         await signOut();
       }
     } : {
-      icon: Calendar,
-      label: "Daily",
-      path: "/daily"
+      icon: User,
+      label: "Sign In",
+      path: "/login"
     }
   ];
 

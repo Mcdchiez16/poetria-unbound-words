@@ -102,6 +102,89 @@ export type Database = {
         }
         Relationships: []
       }
+      external_poem_sources: {
+        Row: {
+          api_endpoint: string | null
+          created_at: string
+          id: string
+          is_active: boolean | null
+          last_sync: string | null
+          name: string
+          updated_at: string
+          url: string
+        }
+        Insert: {
+          api_endpoint?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          last_sync?: string | null
+          name: string
+          updated_at?: string
+          url: string
+        }
+        Update: {
+          api_endpoint?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          last_sync?: string | null
+          name?: string
+          updated_at?: string
+          url?: string
+        }
+        Relationships: []
+      }
+      external_poems: {
+        Row: {
+          author: string
+          category: string | null
+          content: string
+          created_at: string
+          external_id: string
+          id: string
+          is_active: boolean | null
+          original_url: string | null
+          source_id: string | null
+          sync_date: string | null
+          title: string
+        }
+        Insert: {
+          author: string
+          category?: string | null
+          content: string
+          created_at?: string
+          external_id: string
+          id?: string
+          is_active?: boolean | null
+          original_url?: string | null
+          source_id?: string | null
+          sync_date?: string | null
+          title: string
+        }
+        Update: {
+          author?: string
+          category?: string | null
+          content?: string
+          created_at?: string
+          external_id?: string
+          id?: string
+          is_active?: boolean | null
+          original_url?: string | null
+          source_id?: string | null
+          sync_date?: string | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "external_poems_source_id_fkey"
+            columns: ["source_id"]
+            isOneToOne: false
+            referencedRelation: "external_poem_sources"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       poem_images: {
         Row: {
           caption: string | null
@@ -144,6 +227,9 @@ export type Database = {
           is_audio: boolean | null
           is_featured: boolean | null
           is_published: boolean | null
+          is_recording_public: boolean | null
+          recording_duration: number | null
+          recording_url: string | null
           title: string
           updated_at: string
           user_id: string
@@ -157,6 +243,9 @@ export type Database = {
           is_audio?: boolean | null
           is_featured?: boolean | null
           is_published?: boolean | null
+          is_recording_public?: boolean | null
+          recording_duration?: number | null
+          recording_url?: string | null
           title: string
           updated_at?: string
           user_id: string
@@ -170,6 +259,9 @@ export type Database = {
           is_audio?: boolean | null
           is_featured?: boolean | null
           is_published?: boolean | null
+          is_recording_public?: boolean | null
+          recording_duration?: number | null
+          recording_url?: string | null
           title?: string
           updated_at?: string
           user_id?: string
@@ -253,7 +345,23 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      all_poems: {
+        Row: {
+          audio_url: string | null
+          category: string | null
+          content: string | null
+          created_at: string | null
+          external_author: string | null
+          id: string | null
+          is_featured: boolean | null
+          is_published: boolean | null
+          original_url: string | null
+          source_type: string | null
+          title: string | null
+          user_id: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       update_user_streak: {

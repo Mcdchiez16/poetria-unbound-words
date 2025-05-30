@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Search, Filter, BookOpen, Heart, Share2, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -10,32 +9,40 @@ import BottomNavigation from "@/components/BottomNavigation";
 import LoginButton from "@/components/LoginButton";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 
 const Library = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
+  const [selectedSource, setSelectedSource] = useState("all");
   const [likedPoems, setLikedPoems] = useState<string[]>([]);
   const { user } = useAuth();
   const { toast } = useToast();
-  const queryClient = useQueryClient();
 
   const categories = [
-    "all", "classic", "modern", "romantic", "nature", "spiritual", "social", "free_verse"
+    "all", "classic", "modern", "romantic", "nature", "spiritual", "social", "free_verse", "external"
   ];
 
-  // Fetch poems from database
+  const sources = [
+    "all", "internal", "external"
+  ];
+
+  // Fetch all poems (internal and external)
   const { data: poems = [], isLoading } = useQuery({
-    queryKey: ["poems", selectedCategory, searchTerm],
+    queryKey: ["all-poems", selectedCategory, selectedSource, searchTerm],
     queryFn: async () => {
       let query = supabase
-        .from('poems')
+        .from('all_poems')
         .select('*')
         .order('created_at', { ascending: false });
 
       if (selectedCategory !== "all") {
         query = query.eq('category', selectedCategory);
+      }
+
+      if (selectedSource !== "all") {
+        query = query.eq('source_type', selectedSource);
       }
 
       if (searchTerm) {
@@ -150,7 +157,7 @@ const Library = () => {
           </div>
 
           {/* Category Filter */}
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2 mb-4">
             {categories.map((category) => (
               <Button
                 key={category}
@@ -160,6 +167,21 @@ const Library = () => {
                 className={`text-xs sm:text-sm ${selectedCategory === category ? "bg-purple-600 hover:bg-purple-700" : ""}`}
               >
                 {category.charAt(0).toUpperCase() + category.slice(1)}
+              </Button>
+            ))}
+          </div>
+
+          {/* Source Filter */}
+          <div className="flex flex-wrap gap-2">
+            {sources.map((source) => (
+              <Button
+                key={source}
+                variant={selectedSource === source ? "default" : "outline"}
+                size="sm"
+                onClick={() => setSelectedSource(source)}
+                className={`text-xs sm:text-sm ${selectedSource === source ? "bg-blue-600 hover:bg-blue-700" : ""}`}
+              >
+                {source.charAt(0).toUpperCase() + source.slice(1)} Poems
               </Button>
             ))}
           </div>
@@ -182,13 +204,25 @@ const Library = () => {
                     <CardTitle className="text-lg sm:text-xl font-semibold text-gray-800 mb-2">
                       {poem.title}
                     </CardTitle>
-                    <p className="text-purple-600 font-medium text-sm sm:text-base">
-                      Created: {new Date(poem.created_at).toLocaleDateString()}
-                    </p>
+                    <div className="flex flex-col gap-1">
+                      {poem.external_author && (
+                        <p className="text-blue-600 font-medium text-sm sm:text-base">
+                          by {poem.external_author}
+                        </p>
+                      )}
+                      <p className="text-purple-600 font-medium text-sm sm:text-base">
+                        Created: {new Date(poem.created_at).toLocaleDateString()}
+                      </p>
+                    </div>
                   </div>
-                  <Badge variant="secondary" className="bg-purple-100 text-purple-700 self-start sm:self-auto text-xs">
-                    {poem.category}
-                  </Badge>
+                  <div className="flex gap-2">
+                    <Badge variant="secondary" className="bg-purple-100 text-purple-700 text-xs">
+                      {poem.category}
+                    </Badge>
+                    <Badge variant={poem.source_type === 'external' ? "outline" : "default"} className="text-xs">
+                      {poem.source_type === 'external' ? 'External' : 'Community'}
+                    </Badge>
+                  </div>
                 </div>
               </CardHeader>
               <CardContent>
@@ -237,11 +271,17 @@ const Library = () => {
                         </DialogTitle>
                       </DialogHeader>
                       <div className="mt-4">
-                        <div className="mb-4">
+                        <div className="mb-4 flex gap-2">
                           <Badge variant="secondary" className="bg-purple-100 text-purple-700">
                             {poem.category}
                           </Badge>
+                          <Badge variant={poem.source_type === 'external' ? "outline" : "default"}>
+                            {poem.source_type === 'external' ? 'External Source' : 'Community'}
+                          </Badge>
                         </div>
+                        {poem.external_author && (
+                          <p className="text-blue-600 font-medium mb-4">by {poem.external_author}</p>
+                        )}
                         <div className="bg-gray-50 p-6 rounded-lg">
                           <pre className="text-base leading-relaxed font-serif whitespace-pre-wrap text-gray-800">
                             {poem.content}
@@ -271,6 +311,17 @@ const Library = () => {
                               <Share2 className="w-4 h-4" />
                               Share
                             </Button>
+                            {poem.original_url && (
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                className="flex items-center gap-2"
+                                onClick={() => window.open(poem.original_url, '_blank')}
+                              >
+                                <ExternalLink className="w-4 h-4" />
+                                Source
+                              </Button>
+                            )}
                           </div>
                           <p className="text-sm text-gray-500">
                             Created: {new Date(poem.created_at).toLocaleDateString()}

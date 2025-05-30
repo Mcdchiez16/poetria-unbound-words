@@ -11,6 +11,7 @@ import WritingStudio from "./pages/WritingStudio";
 import AudioLibrary from "./pages/AudioLibrary";
 import RecitationStudio from "./pages/RecitationStudio";
 import DailyPoetry from "./pages/DailyPoetry";
+import Profile from "./pages/Profile";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import NotFound from "./pages/NotFound";
@@ -31,6 +32,7 @@ const App = () => (
             <Route path="/audio" element={<AudioLibrary />} />
             <Route path="/recite" element={<RecitationStudio />} />
             <Route path="/daily" element={<DailyPoetry />} />
+            <Route path="/profile" element={<Profile />} />
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

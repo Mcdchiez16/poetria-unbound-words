@@ -9,6 +9,131 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      admin_users: {
+        Row: {
+          created_at: string | null
+          id: string
+          permissions: Json | null
+          role: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          permissions?: Json | null
+          role?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          permissions?: Json | null
+          role?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      daily_featured_poems: {
+        Row: {
+          author: string
+          background_info: string | null
+          category: string | null
+          content: string
+          created_at: string | null
+          created_by: string | null
+          featured_date: string
+          id: string
+          theme: string | null
+          title: string
+        }
+        Insert: {
+          author: string
+          background_info?: string | null
+          category?: string | null
+          content: string
+          created_at?: string | null
+          created_by?: string | null
+          featured_date: string
+          id?: string
+          theme?: string | null
+          title: string
+        }
+        Update: {
+          author?: string
+          background_info?: string | null
+          category?: string | null
+          content?: string
+          created_at?: string | null
+          created_by?: string | null
+          featured_date?: string
+          id?: string
+          theme?: string | null
+          title?: string
+        }
+        Relationships: []
+      }
+      daily_tasks: {
+        Row: {
+          completed: boolean | null
+          completed_at: string | null
+          created_at: string | null
+          id: string
+          task_date: string
+          task_type: string
+          user_id: string | null
+        }
+        Insert: {
+          completed?: boolean | null
+          completed_at?: string | null
+          created_at?: string | null
+          id?: string
+          task_date: string
+          task_type: string
+          user_id?: string | null
+        }
+        Update: {
+          completed?: boolean | null
+          completed_at?: string | null
+          created_at?: string | null
+          id?: string
+          task_date?: string
+          task_type?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      poem_images: {
+        Row: {
+          caption: string | null
+          created_at: string | null
+          id: string
+          image_url: string
+          poem_id: string | null
+        }
+        Insert: {
+          caption?: string | null
+          created_at?: string | null
+          id?: string
+          image_url: string
+          poem_id?: string | null
+        }
+        Update: {
+          caption?: string | null
+          created_at?: string | null
+          id?: string
+          image_url?: string
+          poem_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "poem_images_poem_id_fkey"
+            columns: ["poem_id"]
+            isOneToOne: false
+            referencedRelation: "poems"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       poems: {
         Row: {
           audio_url: string | null
@@ -17,6 +142,8 @@ export type Database = {
           created_at: string
           id: string
           is_audio: boolean | null
+          is_featured: boolean | null
+          is_published: boolean | null
           title: string
           updated_at: string
           user_id: string
@@ -28,6 +155,8 @@ export type Database = {
           created_at?: string
           id?: string
           is_audio?: boolean | null
+          is_featured?: boolean | null
+          is_published?: boolean | null
           title: string
           updated_at?: string
           user_id: string
@@ -39,6 +168,8 @@ export type Database = {
           created_at?: string
           id?: string
           is_audio?: boolean | null
+          is_featured?: boolean | null
+          is_published?: boolean | null
           title?: string
           updated_at?: string
           user_id?: string
@@ -69,12 +200,66 @@ export type Database = {
         }
         Relationships: []
       }
+      user_profiles: {
+        Row: {
+          avatar_url: string | null
+          bio: string | null
+          created_at: string | null
+          current_streak: number | null
+          display_name: string | null
+          google_account_id: string | null
+          google_account_linked: boolean | null
+          id: string
+          last_activity_date: string | null
+          longest_streak: number | null
+          total_poems_recorded: number | null
+          total_poems_written: number | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          bio?: string | null
+          created_at?: string | null
+          current_streak?: number | null
+          display_name?: string | null
+          google_account_id?: string | null
+          google_account_linked?: boolean | null
+          id?: string
+          last_activity_date?: string | null
+          longest_streak?: number | null
+          total_poems_recorded?: number | null
+          total_poems_written?: number | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          avatar_url?: string | null
+          bio?: string | null
+          created_at?: string | null
+          current_streak?: number | null
+          display_name?: string | null
+          google_account_id?: string | null
+          google_account_linked?: boolean | null
+          id?: string
+          last_activity_date?: string | null
+          longest_streak?: number | null
+          total_poems_recorded?: number | null
+          total_poems_written?: number | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      update_user_streak: {
+        Args: { user_id_param: string }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never

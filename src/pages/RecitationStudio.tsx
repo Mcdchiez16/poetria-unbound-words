@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Mic, BookOpen, Users, Trophy, Search, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -13,6 +12,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const RecitationStudio = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -21,6 +21,7 @@ const RecitationStudio = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const isMobile = useIsMobile();
 
   // Fetch all poems for recitation
   const { data: allPoems = [], isLoading } = useQuery({
@@ -133,11 +134,11 @@ const RecitationStudio = () => {
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-blue-50 pb-20 md:pb-0">
       {/* Header */}
       <header className="bg-white/80 backdrop-blur-sm border-b border-purple-100 sticky top-0 z-50">
-        <div className="container mx-auto px-6 py-4">
+        <div className={`container mx-auto ${isMobile ? 'px-4' : 'px-6'} py-4`}>
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
-              <Mic className="w-8 h-8 text-purple-600" />
-              <h1 className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
+              <Mic className={`${isMobile ? 'w-6 h-6' : 'w-8 h-8'} text-purple-600`} />
+              <h1 className={`${isMobile ? 'text-lg' : 'text-2xl'} font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent`}>
                 Recitation Studio
               </h1>
             </div>
@@ -146,13 +147,14 @@ const RecitationStudio = () => {
         </div>
       </header>
 
-      <div className="container mx-auto px-6 py-8">
+      <div className={`container mx-auto ${isMobile ? 'px-4 py-4' : 'px-6 py-8'}`}>
         {selectedPoem ? (
           /* Recording Interface */
-          <div className="space-y-6">
+          <div className={`space-y-${isMobile ? '4' : '6'}`}>
             <div className="flex items-center justify-between">
               <Button
                 variant="outline"
+                size={isMobile ? "sm" : "default"}
                 onClick={() => setSelectedPoem(null)}
               >
                 ← Back to Poems
@@ -161,14 +163,14 @@ const RecitationStudio = () => {
             </div>
 
             <Card>
-              <CardHeader>
-                <CardTitle>{selectedPoem.title}</CardTitle>
-                <p className="text-purple-600">
+              <CardHeader className={isMobile ? 'p-4' : ''}>
+                <CardTitle className={isMobile ? 'text-lg' : ''}>{selectedPoem.title}</CardTitle>
+                <p className={`text-purple-600 ${isMobile ? 'text-sm' : ''}`}>
                   by {selectedPoem.external_author || "Unknown Author"}
                 </p>
               </CardHeader>
-              <CardContent>
-                <div className="whitespace-pre-wrap text-gray-700 mb-6 max-h-64 overflow-y-auto">
+              <CardContent className={isMobile ? 'p-4 pt-0' : ''}>
+                <div className={`whitespace-pre-wrap text-gray-700 mb-6 ${isMobile ? 'max-h-48 text-sm' : 'max-h-64'} overflow-y-auto`}>
                   {selectedPoem.content}
                 </div>
               </CardContent>
@@ -183,22 +185,22 @@ const RecitationStudio = () => {
         ) : (
           /* Main Interface */
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="poems" className="flex items-center gap-2">
+            <TabsList className={`grid w-full grid-cols-3 ${isMobile ? 'h-auto' : ''}`}>
+              <TabsTrigger value="poems" className={`flex items-center gap-2 ${isMobile ? 'text-xs px-2 py-2' : ''}`}>
                 <BookOpen className="w-4 h-4" />
-                Poems
+                {!isMobile && "Poems"}
               </TabsTrigger>
-              <TabsTrigger value="recordings" className="flex items-center gap-2">
+              <TabsTrigger value="recordings" className={`flex items-center gap-2 ${isMobile ? 'text-xs px-2 py-2' : ''}`}>
                 <Mic className="w-4 h-4" />
-                My Recordings
+                {!isMobile && "My Recordings"}
               </TabsTrigger>
-              <TabsTrigger value="community" className="flex items-center gap-2">
+              <TabsTrigger value="community" className={`flex items-center gap-2 ${isMobile ? 'text-xs px-2 py-2' : ''}`}>
                 <Users className="w-4 h-4" />
-                Community
+                {!isMobile && "Community"}
               </TabsTrigger>
             </TabsList>
 
-            <TabsContent value="poems" className="space-y-6">
+            <TabsContent value="poems" className={`space-y-${isMobile ? '4' : '6'}`}>
               {/* Search */}
               <div className="relative max-w-md mx-auto">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
@@ -215,25 +217,26 @@ const RecitationStudio = () => {
                   <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
                 </div>
               ) : (
-                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className={`grid ${isMobile ? 'grid-cols-1 gap-4' : 'md:grid-cols-2 lg:grid-cols-3 gap-6'}`}>
                   {filteredPoems.map((poem) => (
                     <Card key={poem.id} className="hover:shadow-lg transition-all duration-300 cursor-pointer">
-                      <CardHeader>
+                      <CardHeader className={isMobile ? 'p-4' : ''}>
                         <Badge variant="secondary" className="w-fit">
                           {poem.category || "general"}
                         </Badge>
-                        <CardTitle className="text-lg">{poem.title}</CardTitle>
-                        <p className="text-purple-600">
+                        <CardTitle className={isMobile ? 'text-base' : 'text-lg'}>{poem.title}</CardTitle>
+                        <p className={`text-purple-600 ${isMobile ? 'text-sm' : ''}`}>
                           by {poem.external_author || "Unknown Author"}
                         </p>
                       </CardHeader>
-                      <CardContent>
-                        <p className="text-gray-600 text-sm mb-4 line-clamp-3">
+                      <CardContent className={isMobile ? 'p-4 pt-0' : ''}>
+                        <p className={`text-gray-600 ${isMobile ? 'text-sm' : 'text-sm'} mb-4 line-clamp-3`}>
                           {poem.content}
                         </p>
                         <Button
                           onClick={() => setSelectedPoem(poem)}
                           className="w-full"
+                          size={isMobile ? "sm" : "default"}
                         >
                           <Mic className="w-4 h-4 mr-2" />
                           Start Recording
@@ -245,43 +248,43 @@ const RecitationStudio = () => {
               )}
             </TabsContent>
 
-            <TabsContent value="recordings" className="space-y-6">
+            <TabsContent value="recordings" className={`space-y-${isMobile ? '4' : '6'}`}>
               <div className="text-center">
-                <h2 className="text-2xl font-bold mb-4">My Recordings</h2>
-                <p className="text-gray-600 mb-6">Listen to your recorded recitations</p>
+                <h2 className={`${isMobile ? 'text-xl' : 'text-2xl'} font-bold mb-4`}>My Recordings</h2>
+                <p className={`text-gray-600 mb-6 ${isMobile ? 'text-sm' : ''}`}>Listen to your recorded recitations</p>
               </div>
 
               {userRecordings.length === 0 ? (
                 <div className="text-center py-12">
                   <Mic className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                  <h3 className="text-xl font-semibold text-gray-600 mb-2">No Recordings Yet</h3>
-                  <p className="text-gray-500 mb-4">Start by recording your first poem recitation</p>
-                  <Button onClick={() => setActiveTab("poems")}>
+                  <h3 className={`${isMobile ? 'text-lg' : 'text-xl'} font-semibold text-gray-600 mb-2`}>No Recordings Yet</h3>
+                  <p className={`text-gray-500 mb-4 ${isMobile ? 'text-sm' : ''}`}>Start by recording your first poem recitation</p>
+                  <Button onClick={() => setActiveTab("poems")} size={isMobile ? "sm" : "default"}>
                     <BookOpen className="w-4 h-4 mr-2" />
                     Browse Poems
                   </Button>
                 </div>
               ) : (
-                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className={`grid ${isMobile ? 'grid-cols-1 gap-4' : 'md:grid-cols-2 lg:grid-cols-3 gap-6'}`}>
                   {userRecordings.map((recording) => (
                     <Card key={recording.id} className="hover:shadow-lg transition-all duration-300">
-                      <CardHeader>
-                        <CardTitle className="text-lg">{recording.title}</CardTitle>
-                        <p className="text-sm text-gray-500">
+                      <CardHeader className={isMobile ? 'p-4' : ''}>
+                        <CardTitle className={isMobile ? 'text-base' : 'text-lg'}>{recording.title}</CardTitle>
+                        <p className={`${isMobile ? 'text-xs' : 'text-sm'} text-gray-500`}>
                           Recorded on {new Date(recording.created_at).toLocaleDateString()}
                         </p>
                       </CardHeader>
-                      <CardContent>
-                        <div className="space-y-4">
+                      <CardContent className={isMobile ? 'p-4 pt-0' : ''}>
+                        <div className={`space-y-${isMobile ? '3' : '4'}`}>
                           <div className="flex items-center justify-between">
-                            <span className="text-sm text-gray-600">
+                            <span className={`${isMobile ? 'text-xs' : 'text-sm'} text-gray-600`}>
                               Duration: {recording.recording_duration ? formatDuration(recording.recording_duration) : "Unknown"}
                             </span>
                             <Badge variant={recording.is_recording_public ? "default" : "secondary"}>
                               {recording.is_recording_public ? "Public" : "Private"}
                             </Badge>
                           </div>
-                          <Button variant="outline" className="w-full">
+                          <Button variant="outline" className="w-full" size={isMobile ? "sm" : "default"}>
                             <Play className="w-4 h-4 mr-2" />
                             Play Recording
                           </Button>
@@ -293,11 +296,11 @@ const RecitationStudio = () => {
               )}
             </TabsContent>
 
-            <TabsContent value="community" className="space-y-6">
+            <TabsContent value="community" className={`space-y-${isMobile ? '4' : '6'}`}>
               <div className="text-center py-12">
                 <Users className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                <h3 className="text-xl font-semibold text-gray-600 mb-2">Community Features Coming Soon</h3>
-                <p className="text-gray-500">Share your recordings and listen to others' recitations</p>
+                <h3 className={`${isMobile ? 'text-lg' : 'text-xl'} font-semibold text-gray-600 mb-2`}>Community Features Coming Soon</h3>
+                <p className={`text-gray-500 ${isMobile ? 'text-sm' : ''}`}>Share your recordings and listen to others' recitations</p>
               </div>
             </TabsContent>
           </Tabs>

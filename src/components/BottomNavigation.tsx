@@ -1,12 +1,12 @@
 
-import { BookOpen, Mic, PenTool, Volume2, User, LogOut } from "lucide-react";
+import { BookOpen, Mic, PenTool, User, Calendar } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 
 const BottomNavigation = () => {
   const location = useLocation();
-  const { user, signOut } = useAuth();
+  const { user } = useAuth();
 
   const navItems = [
     {
@@ -20,9 +20,9 @@ const BottomNavigation = () => {
       path: "/write"
     },
     {
-      icon: Volume2,
-      label: "Audio",
-      path: "/audio"
+      icon: Calendar,
+      label: "Daily",
+      path: "/daily"
     },
     {
       icon: Mic,
@@ -42,7 +42,7 @@ const BottomNavigation = () => {
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-sm border-t border-purple-100 z-50 md:hidden">
-      <div className="flex justify-around items-center py-2 px-4">
+      <div className="flex justify-around items-center py-2 px-2 max-w-md mx-auto">
         {navItems.map((item) => {
           const isActive = location.pathname === item.path;
           
@@ -57,7 +57,7 @@ const BottomNavigation = () => {
                   : "text-gray-600 hover:text-purple-600 hover:bg-purple-50"
               )}
             >
-              <item.icon className="w-5 h-5 mb-1" />
+              <item.icon className="w-4 h-4 mb-1" />
               <span className="text-xs font-medium truncate">{item.label}</span>
             </Link>
           );

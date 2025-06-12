@@ -8,7 +8,6 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import Index from "./pages/Index";
 import Library from "./pages/Library";
 import WritingStudio from "./pages/WritingStudio";
-import AudioLibrary from "./pages/AudioLibrary";
 import RecitationStudio from "./pages/RecitationStudio";
 import DailyPoetry from "./pages/DailyPoetry";
 import Profile from "./pages/Profile";
@@ -30,7 +29,6 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/library" element={<Library />} />
             <Route path="/write" element={<WritingStudio />} />
-            <Route path="/audio" element={<AudioLibrary />} />
             <Route path="/recite" element={<RecitationStudio />} />
             <Route path="/daily" element={<DailyPoetry />} />
             <Route path="/profile" element={<Profile />} />

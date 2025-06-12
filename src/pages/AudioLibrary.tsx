@@ -12,17 +12,20 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const AudioLibrary = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [currentlyPlaying, setCurrentlyPlaying] = useState<string | null>(null);
   const { user } = useAuth();
   const { toast } = useToast();
+  const isMobile = useIsMobile();
 
   // Fetch all poems (user poems, external poems, and daily featured poems)
   const { data: allPoems = [], isLoading } = useQuery({
     queryKey: ["allPoems"],
     queryFn: async () => {
+      console.log("Fetching all poems...");
       const { data, error } = await supabase
         .from('all_poems')
         .select('*')
@@ -38,6 +41,7 @@ const AudioLibrary = () => {
         return [];
       }
       
+      console.log("Fetched poems:", data?.length);
       return data || [];
     },
   });
@@ -64,21 +68,23 @@ const AudioLibrary = () => {
 
   const handlePlay = (id: string) => {
     setCurrentlyPlaying(id);
+    console.log("Playing poem:", id);
   };
 
   const handlePause = () => {
     setCurrentlyPlaying(null);
+    console.log("Paused playback");
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-blue-50 pb-20 md:pb-0">
       {/* Header */}
       <header className="bg-white/80 backdrop-blur-sm border-b border-purple-100 sticky top-0 z-50">
-        <div className="container mx-auto px-6 py-4">
+        <div className="container mx-auto px-4 sm:px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
-              <Volume2 className="w-8 h-8 text-purple-600" />
-              <h1 className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
+              <Volume2 className={`${isMobile ? 'w-6 h-6' : 'w-8 h-8'} text-purple-600`} />
+              <h1 className={`${isMobile ? 'text-xl' : 'text-2xl'} font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent`}>
                 Audio Library
               </h1>
             </div>
@@ -87,9 +93,9 @@ const AudioLibrary = () => {
         </div>
       </header>
 
-      <div className="container mx-auto px-6 py-8">
+      <div className="container mx-auto px-4 sm:px-6 py-6 sm:py-8">
         {/* Search */}
-        <div className="mb-8">
+        <div className="mb-6 sm:mb-8">
           <div className="relative max-w-md mx-auto">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
             <Input
@@ -114,22 +120,22 @@ const AudioLibrary = () => {
         ) : (
           <>
             {/* Featured Section */}
-            <div className="mb-8">
-              <h2 className="text-2xl font-bold mb-4 text-gray-800">Featured Narrations</h2>
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="mb-6 sm:mb-8">
+              <h2 className={`${isMobile ? 'text-xl' : 'text-2xl'} font-bold mb-4 text-gray-800`}>Featured Narrations</h2>
+              <div className="grid gap-4 sm:gap-6 md:grid-cols-2 lg:grid-cols-3">
                 {filteredAudio.slice(0, 3).map((poem) => (
                   <Card key={poem.id} className="hover:shadow-lg transition-all duration-300 border-purple-100">
-                    <CardHeader>
-                      <Badge variant="secondary" className="w-fit bg-purple-100 text-purple-700">
+                    <CardHeader className="pb-3">
+                      <Badge variant="secondary" className="w-fit bg-purple-100 text-purple-700 text-xs">
                         {poem.category}
                       </Badge>
-                      <CardTitle className="text-lg font-semibold text-gray-800">
+                      <CardTitle className={`${isMobile ? 'text-base' : 'text-lg'} font-semibold text-gray-800 leading-tight`}>
                         {poem.title}
                       </CardTitle>
-                      <p className="text-purple-600 font-medium">by {poem.author}</p>
-                      <p className="text-sm text-gray-500">Narrated by {poem.narrator}</p>
+                      <p className={`text-purple-600 font-medium ${isMobile ? 'text-sm' : ''}`}>by {poem.author}</p>
+                      <p className={`text-gray-500 ${isMobile ? 'text-xs' : 'text-sm'}`}>Narrated by {poem.narrator}</p>
                     </CardHeader>
-                    <CardContent>
+                    <CardContent className="pt-0">
                       <div className="space-y-4">
                         {/* Audio Player */}
                         <AudioPlayer
@@ -140,8 +146,8 @@ const AudioLibrary = () => {
                         />
 
                         {/* Stats and Actions */}
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-4 text-sm text-gray-500">
+                        <div className={`flex items-center ${isMobile ? 'flex-col gap-2' : 'justify-between'}`}>
+                          <div className={`flex items-center gap-4 ${isMobile ? 'text-xs' : 'text-sm'} text-gray-500`}>
                             <span className="flex items-center gap-1">
                               <Heart className="w-4 h-4" />
                               {poem.likes}
@@ -151,7 +157,7 @@ const AudioLibrary = () => {
                               {poem.downloads}
                             </span>
                           </div>
-                          <Button size="sm" variant="outline" disabled={!poem.audio_url}>
+                          <Button size={isMobile ? "sm" : "sm"} variant="outline" disabled={!poem.audio_url}>
                             <Download className="w-4 h-4 mr-2" />
                             Download
                           </Button>
@@ -165,19 +171,19 @@ const AudioLibrary = () => {
 
             {/* All Audio List */}
             <div>
-              <h2 className="text-2xl font-bold mb-4 text-gray-800">All Audio Poems</h2>
-              <div className="space-y-4">
+              <h2 className={`${isMobile ? 'text-xl' : 'text-2xl'} font-bold mb-4 text-gray-800`}>All Audio Poems</h2>
+              <div className="space-y-3 sm:space-y-4">
                 {filteredAudio.map((poem) => (
                   <Card key={poem.id} className="hover:shadow-md transition-all duration-300">
-                    <CardContent className="p-6">
-                      <div className="space-y-4">
-                        <div className="flex items-start justify-between">
-                          <div>
-                            <h3 className="font-semibold text-gray-800">{poem.title}</h3>
-                            <p className="text-purple-600 text-sm">by {poem.author}</p>
-                            <p className="text-gray-500 text-sm">Narrated by {poem.narrator}</p>
+                    <CardContent className={`${isMobile ? 'p-4' : 'p-6'}`}>
+                      <div className="space-y-3 sm:space-y-4">
+                        <div className={`flex items-start ${isMobile ? 'flex-col gap-2' : 'justify-between'}`}>
+                          <div className={isMobile ? 'w-full' : ''}>
+                            <h3 className={`font-semibold text-gray-800 ${isMobile ? 'text-base' : ''}`}>{poem.title}</h3>
+                            <p className={`text-purple-600 ${isMobile ? 'text-sm' : 'text-sm'}`}>by {poem.author}</p>
+                            <p className={`text-gray-500 ${isMobile ? 'text-xs' : 'text-sm'}`}>Narrated by {poem.narrator}</p>
                           </div>
-                          <div className="flex items-center gap-4 text-sm text-gray-500">
+                          <div className={`flex items-center gap-4 ${isMobile ? 'text-xs w-full justify-between' : 'text-sm'} text-gray-500`}>
                             <span className="flex items-center gap-1">
                               <Heart className="w-4 h-4" />
                               {poem.likes}
@@ -202,8 +208,8 @@ const AudioLibrary = () => {
             </div>
 
             {/* Load More */}
-            <div className="text-center mt-8">
-              <Button variant="outline" size="lg">
+            <div className="text-center mt-6 sm:mt-8">
+              <Button variant="outline" size={isMobile ? "default" : "lg"}>
                 Load More Audio
               </Button>
             </div>

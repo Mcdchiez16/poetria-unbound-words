@@ -16,25 +16,25 @@ import { useIsMobile } from "@/hooks/use-mobile";
 
 const AudioLibrary = () => {
   const [searchTerm, setSearchTerm] = useState("");
-  const [playingId, setPlayingId] = useState<number | null>(null);
+  const [playingId, setPlayingId] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
   const { user } = useAuth();
   const { toast } = useToast();
   const isMobile = useIsMobile();
 
-  // Fetch audio poems from Supabase
-  const { data: dbPoems = [], isLoading } = useQuery({
-    queryKey: ["audioPoems"],
+  // Fetch all poems (user poems, external poems, and daily featured poems)
+  const { data: allPoems = [], isLoading } = useQuery({
+    queryKey: ["allPoems"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('poems')
+        .from('all_poems')
         .select('*')
-        .eq('is_audio', true)
         .order('created_at', { ascending: false });
       
       if (error) {
+        console.error("Error fetching poems:", error);
         toast({
-          title: "Error loading audio poems",
+          title: "Error loading poems",
           description: error.message,
           variant: "destructive",
         });
@@ -45,64 +45,20 @@ const AudioLibrary = () => {
     },
   });
 
-  // Sample audio poems to display when no data from database
-  const sampleAudioPoems = [
-    {
-      id: 1,
-      title: "The Raven",
-      author: "Edgar Allan Poe",
-      narrator: "James Earl Jones",
-      duration: "8:45",
-      category: "classic",
-      likes: 3421,
-      downloads: 1205
-    },
-    {
-      id: 2,
-      title: "Phenomenal Woman",
-      author: "Maya Angelou",
-      narrator: "Maya Angelou",
-      duration: "4:32",
-      category: "modern",
-      likes: 2867,
-      downloads: 987
-    },
-    {
-      id: 3,
-      title: "If—",
-      author: "Rudyard Kipling",
-      narrator: "Morgan Freeman",
-      duration: "3:28",
-      category: "inspirational",
-      likes: 4156,
-      downloads: 1543
-    },
-    {
-      id: 4,
-      title: "The Love Song of J. Alfred Prufrock",
-      author: "T.S. Eliot",
-      narrator: "Benedict Cumberbatch",
-      duration: "12:15",
-      category: "modern",
-      likes: 1987,
-      downloads: 756
-    }
-  ];
-
-  // Use actual poems from database if available, otherwise use sample data
-  const audioPoems = dbPoems.length > 0 
-    ? dbPoems.map(poem => ({
-        id: poem.id,
-        title: poem.title,
-        author: user?.user_metadata?.full_name || "Unknown Author",
-        narrator: user?.user_metadata?.full_name || "Unknown Narrator",
-        duration: "3:45", // Placeholder duration
-        category: poem.category || "free_verse",
-        likes: Math.floor(Math.random() * 1000),
-        downloads: Math.floor(Math.random() * 500),
-        content: poem.content
-      }))
-    : sampleAudioPoems;
+  // Transform poems for audio display
+  const audioPoems = allPoems.map(poem => ({
+    id: poem.id,
+    title: poem.title,
+    author: poem.external_author || (user?.user_metadata?.full_name) || "Unknown Author",
+    narrator: poem.source_type === 'user' ? (user?.user_metadata?.full_name || "You") : "AI Narrator",
+    duration: "3:45", // Placeholder duration
+    category: poem.category || "general",
+    likes: Math.floor(Math.random() * 1000),
+    downloads: Math.floor(Math.random() * 500),
+    content: poem.content,
+    audio_url: poem.audio_url,
+    source_type: poem.source_type
+  }));
 
   const filteredAudio = audioPoems.filter(poem =>
     poem.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -110,7 +66,7 @@ const AudioLibrary = () => {
     (poem.narrator && poem.narrator.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
-  const togglePlay = (id: any) => {
+  const togglePlay = (id: string) => {
     if (playingId === id) {
       setPlayingId(null);
     } else {
@@ -153,6 +109,12 @@ const AudioLibrary = () => {
         {isLoading ? (
           <div className="flex justify-center py-12">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+          </div>
+        ) : filteredAudio.length === 0 ? (
+          <div className="text-center py-12">
+            <Volume2 className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+            <h3 className="text-xl font-semibold text-gray-600 mb-2">No Audio Poems Found</h3>
+            <p className="text-gray-500">Try adjusting your search or check back later for new content.</p>
           </div>
         ) : (
           <>
